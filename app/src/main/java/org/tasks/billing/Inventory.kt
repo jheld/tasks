@@ -16,67 +16,82 @@ import org.tasks.data.isTasksSubscription
 import org.tasks.extensions.Context.openUri
 import org.tasks.injection.ApplicationScope
 import org.tasks.preferences.Preferences
+import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class Inventory @Inject constructor(
-    @ApplicationScope scope: CoroutineScope,
-    private val preferences: Preferences,
-    private val playPurchases: PlayPurchases,
-    private val localBroadcastManager: LocalBroadcastManager,
-    private val caldavDao: CaldavDao,
-) : PurchaseState {
-    val subscription = MutableLiveData<PlayPurchase?>()
+class Inventory
+    @Inject
+    constructor(
+        @ApplicationScope scope: CoroutineScope,
+        private val preferences: Preferences,
+        private val playPurchases: PlayPurchases,
+        private val localBroadcastManager: LocalBroadcastManager,
+        private val caldavDao: CaldavDao,
+    ) : PurchaseState {
+        val subscription = MutableLiveData<PlayPurchase?>()
 
-    val currentSubscription: PlayPurchase?
-        get() = playPurchases.state.value.subscription
+        val currentSubscription: PlayPurchase?
+            get() = playPurchases.state.value.subscription
 
-    val purchases: Map<String, PlayPurchase>
-        get() = playPurchases.state.value.purchases
+        val purchases: Map<String, PlayPurchase>
+            get() = playPurchases.state.value.purchases
 
-    override var hasTasksAccount = false
-        private set
+        override var hasTasksAccount = false
+            private set
 
-    override val hasTasksSubscription: Boolean
-        get() = currentSubscription?.isTasksSubscription == true || hasTasksAccount
-
-    val begForMoney: Boolean
-        get() = if (IS_GENERIC) !hasTasksAccount else !hasPro
-
-    override fun purchasedThemes() = hasPro || playPurchases.purchasedThemes
-
-    @Suppress("KotlinConstantConditions")
-    override val hasPro: Boolean
-        get() = IS_GENERIC ||
-                (BuildConfig.DEBUG && preferences.getBoolean(R.string.p_debug_pro, false)) ||
-                hasTasksAccount ||
-                playPurchases.hasPro
-
-    suspend fun updateTasksAccount() {
-        hasTasksAccount = caldavDao.getAccounts(TYPE_TASKS, TYPE_CALDAV).any {
-            it.isTasksSubscription()
+        fun clear() {
+            Timber.d("clear()")
+            playPurchases.replaceAll(emptyList())
+            subscription.value = null
         }
-    }
 
-    fun getPurchase(sku: String) = playPurchases.get(sku)
+        override val hasTasksSubscription: Boolean
+            get() = currentSubscription?.isTasksSubscription == true || hasTasksAccount
 
-    fun unsubscribe(context: Context): Boolean {
-        currentSubscription?.let {
-            context.openUri(R.string.manage_subscription_url, it.sku)
+        val begForMoney: Boolean
+            get() = if (IS_GENERIC) !hasTasksAccount else !hasPro
+
+        override fun purchasedThemes() = hasPro || playPurchases.purchasedThemes
+
+        @Suppress("SimplifyBooleanWithConstants")
+        override var hasPro = true
+            get() {
+                return true
+                // @Suppress("KotlinConstantConditions")
+                // return IS_GENERIC
+                //         || (BuildConfig.DEBUG && preferences.getBoolean(R.string.p_debug_pro, false))
+                //         || hasTasksAccount
+                //         || field
+            }
+            private set
+
+        suspend fun updateTasksAccount() {
+            hasTasksAccount =
+                caldavDao.getAccounts(TYPE_TASKS, TYPE_CALDAV).any {
+                    it.isTasksSubscription()
+                }
         }
-        return false
-    }
 
-    init {
-        scope.launch {
-            playPurchases.load()
+        fun getPurchase(sku: String) = playPurchases.get(sku)
+
+        fun unsubscribe(context: Context): Boolean {
+            currentSubscription?.let {
+                context.openUri(R.string.manage_subscription_url, it.sku)
+            }
+            return false
         }
-        scope.launch(Dispatchers.Main.immediate) {
-            playPurchases.updates.collect {
-                subscription.value = playPurchases.state.value.subscription
-                localBroadcastManager.broadcastPurchasesUpdated()
+
+        init {
+            scope.launch {
+                playPurchases.load()
+            }
+            scope.launch(Dispatchers.Main.immediate) {
+                playPurchases.updates.collect {
+                    subscription.value = playPurchases.state.value.subscription
+                    localBroadcastManager.broadcastPurchasesUpdated()
+                }
             }
         }
     }
-}
