@@ -53,7 +53,7 @@ class Inventory @Inject constructor(
                 purchases[purchase.sku] = purchase
             }
         }
-        hasPro = purchases.values.any { it.isProSubscription } || purchases.containsKey(SKU_VIP)
+        hasPro = purchases.values.any { it.isProSubscription } || purchases.containsKey(SKU_VIP) || true
         updateSubscription()
     }
 
@@ -65,14 +65,16 @@ class Inventory @Inject constructor(
 
     override fun purchasedThemes() = hasPro || purchases.containsKey(SKU_THEMES)
 
+
     @Suppress("SimplifyBooleanWithConstants")
-    override var hasPro = false
+    override var hasPro = true
         get() {
-            @Suppress("KotlinConstantConditions")
-            return IS_GENERIC
-                    || (BuildConfig.DEBUG && preferences.getBoolean(R.string.p_debug_pro, false))
-                    || hasTasksAccount
-                    || field
+            return true;
+            // @Suppress("KotlinConstantConditions")
+            // return IS_GENERIC
+            //         || (BuildConfig.DEBUG && preferences.getBoolean(R.string.p_debug_pro, false))
+            //         || hasTasksAccount
+            //         || field
         }
         private set
 
