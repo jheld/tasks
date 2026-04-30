@@ -51,10 +51,6 @@ class EtebaseSynchronizer(
 
     suspend fun sync(account: CaldavAccount, hasPro: Boolean) {
         Logger.d("EtebaseSynchronizer") { "Synchronizing $account" }
-        if (!hasPro) {
-            setError(account, getString(Res.string.requires_pro_subscription))
-            return
-        }
         if (account.password.isNullOrEmpty()) {
             setError(account, getString(Res.string.password_required))
             return

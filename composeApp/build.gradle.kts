@@ -146,6 +146,11 @@ android {
 compose.desktop {
     application {
         mainClass = "MainKt"
+        jvmArgs(
+            "--add-opens", "java.base/sun.misc=ALL-UNNAMED",
+            "--add-opens", "jdk.unsupported/sun.misc=ALL-UNNAMED",
+            "--add-exports", "jdk.unsupported/sun.misc=ALL-UNNAMED"
+        )
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)

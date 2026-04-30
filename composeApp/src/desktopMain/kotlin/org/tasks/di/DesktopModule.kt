@@ -2,7 +2,6 @@ package org.tasks.di
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
@@ -23,6 +22,9 @@ import org.tasks.billing.EntitlementProvider
 import org.tasks.billing.DesktopLinkClientImpl
 import org.tasks.billing.GitHubSponsorClient
 import org.tasks.billing.GitHubSponsorClientImpl
+import org.tasks.billing.LocalPurchaseState
+import org.tasks.billing.LocalSubscriptionProvider
+import org.tasks.billing.PurchaseState
 import org.tasks.billing.SubscriptionProvider
 import org.tasks.caldav.FileStorage
 import org.tasks.caldav.VtodoCache
@@ -106,7 +108,7 @@ actual fun platformModule(): Module = module {
     single {
         PlatformConfiguration(
             versionCode = JvmBuildConfig.VERSION_CODE,
-            billingProvider = BillingProvider.PADDLE,
+            billingProvider = BillingProvider.LOCAL,
             supportsCaldav = true,
             supportsEteSync = true,
             supportsGoogleTasks = true,
@@ -215,6 +217,8 @@ actual fun platformModule(): Module = module {
                 entitlement.formattedPrice.first()
         }
     }
+    single<PurchaseState> { LocalPurchaseState() }
+    single<SubscriptionProvider> { LocalSubscriptionProvider() }
     single<DesktopLinkClient> {
         DesktopLinkClientImpl(
             httpClientFactory = get(),

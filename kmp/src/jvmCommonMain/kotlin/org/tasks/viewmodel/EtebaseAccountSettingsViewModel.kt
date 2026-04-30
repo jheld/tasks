@@ -68,6 +68,11 @@ open class EtebaseAccountSettingsViewModel(
         val defaultUrl = getString(Res.string.etebase_url)
         val hasCustomUrl = !account.url.isNullOrBlank() && account.url != defaultUrl
         accountId.value = account.id
+        // Clear any pro subscription error since desktop now uses local billing with hasPro=true
+        if (account.error?.contains("requires_pro_subscription", ignoreCase = true) == true) {
+            account.error = ""
+            caldavDao.update(account)
+        }
         _state.value = EtebaseAccountState(
             url = account.url.orEmpty(),
             username = account.username.orEmpty(),
@@ -286,16 +291,24 @@ open class EtebaseAccountSettingsViewModel(
 
     private suspend fun handleError(e: Exception) {
         Logger.e(e) { "Etebase account operation failed" }
+        val errorMessage = e.message ?: ""
+        val sanitizedMessage = sanitizeError(errorMessage)
         _state.update {
             it.copy(
                 snackbar = when (e) {
                     is UnauthorizedException -> getString(Res.string.invalid_username_or_password)
                     is ConnectionException -> getString(Res.string.network_error)
                     is ConnectException -> getString(Res.string.network_error)
-                    else -> getString(Res.string.error_adding_account, e.message ?: "")
+                    else -> getString(Res.string.error_adding_account, sanitizedMessage)
                 }
             )
         }
+    }
+
+    private fun sanitizeError(message: String): String {
+        val password = _state.value.password
+        if (password.isEmpty()) return message
+        return message.replace(password, "***")
     }
 
     fun delete(onComplete: () -> Unit) {
