@@ -1272,6 +1272,7 @@ fun App(
                             )
                             BillingProvider.GOOGLE_PLAY ->
                                 storeBillingProvider?.storeBilling(suggestedPrice) { popPricing() }
+                            BillingProvider.LOCAL -> null
                             null -> null
                         }
                         PricingScreen(

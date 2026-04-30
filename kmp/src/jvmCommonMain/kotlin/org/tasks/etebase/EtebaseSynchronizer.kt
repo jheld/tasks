@@ -40,7 +40,10 @@ class EtebaseSynchronizer(
     private val vtodoCache: VtodoCache,
     private val reporting: Reporting,
 ) {
-    suspend fun sync(account: CaldavAccount, hasPro: Boolean) {
+    suspend fun sync(
+        account: CaldavAccount,
+        hasPro: Boolean,
+    ) {
         Logger.d("EtebaseSynchronizer") { "Synchronizing $account" }
         if (!hasPro) {
             setError(account, getString(Res.string.subscription_required))
@@ -57,7 +60,7 @@ class EtebaseSynchronizer(
                 reporting.logEvent(
                     INITIAL_SYNC_COMPLETE,
                     PARAM_TYPE to Constants.SYNC_TYPE_ETEBASE,
-                    PARAM_TASK_COUNT to taskCount
+                    PARAM_TASK_COUNT to taskCount,
                 )
             }
             account.lastSync = currentTimeMillis()
@@ -90,21 +93,26 @@ class EtebaseSynchronizer(
             val uid = collection.uid
             var calendar = caldavDao.getCalendarByUrl(account.uuid!!, uid)
             val meta = collection.meta
-            val color = meta.color
-                ?.takeIf { it.isNotBlank() }
-                ?.let {
-                    val parsed = java.lang.Long.decode(it).toInt()
-                    if (it.length == 7) parsed or 0xFF000000.toInt() else parsed
-                }
-                ?: 0
+            val color =
+                meta.color
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let {
+                        val parsed =
+                            java.lang.Long
+                                .decode(it)
+                                .toInt()
+                        if (it.length == 7) parsed or 0xFF000000.toInt() else parsed
+                    }
+                    ?: 0
             if (calendar == null) {
-                calendar = CaldavCalendar(
-                    name = meta.name,
-                    account = account.uuid,
-                    url = collection.uid,
-                    uuid = UUIDHelper.newUUID(),
-                    color = color,
-                )
+                calendar =
+                    CaldavCalendar(
+                        name = meta.name,
+                        account = account.uuid,
+                        url = collection.uid,
+                        uuid = UUIDHelper.newUUID(),
+                        color = color,
+                    )
                 caldavDao.insert(calendar)
             } else if (calendar.name != meta.name || calendar.color != color) {
                 calendar.name = meta.name
@@ -117,10 +125,15 @@ class EtebaseSynchronizer(
         }
     }
 
-    private suspend fun setError(account: CaldavAccount, e: Throwable) =
-            setError(account, e.message)
+    private suspend fun setError(
+        account: CaldavAccount,
+        e: Throwable,
+    ) = setError(account, e.message)
 
-    private suspend fun setError(account: CaldavAccount, message: String?) {
+    private suspend fun setError(
+        account: CaldavAccount,
+        message: String?,
+    ) {
         account.error = message
         caldavDao.update(account)
         refreshBroadcaster.broadcastRefresh()
@@ -133,7 +146,7 @@ class EtebaseSynchronizer(
         account: CaldavAccount,
         client: EtebaseClient,
         caldavCalendar: CaldavCalendar,
-        collection: Collection
+        collection: Collection,
     ) {
         if (caldavCalendar.ctag?.equals(collection.stoken) == true) {
             Logger.d("EtebaseSynchronizer") { "${caldavCalendar.name} up to date" }
@@ -155,33 +168,36 @@ class EtebaseSynchronizer(
         account: CaldavAccount,
         client: EtebaseClient,
         caldavCalendar: CaldavCalendar,
-        collection: Collection
+        collection: Collection,
     ) {
         val changes = ArrayList<Item>()
         for (caldavTask in caldavDao.getMoved(caldavCalendar.uuid!!)) {
-            client.deleteItem(collection, caldavTask)
-                    ?.let { changes.add(it) }
-                    ?: run {
-                        caldavDao.delete(caldavTask)
-                    }
+            client
+                .deleteItem(collection, caldavTask)
+                ?.let { changes.add(it) }
+                ?: run {
+                    caldavDao.delete(caldavTask)
+                }
         }
         val tasksToPush = dirtyDao.getTasksToPush(caldavCalendar.uuid!!)
         val dirtyVersions = tasksToPush.associate { it.caldavTaskId to it.dirtyVersion }
-        val caldavTasks = tasksToPush.mapNotNull { toPush ->
-            caldavDao.getCaldavTaskById(toPush.caldavTaskId)?.let { toPush.task to it }
-        }
+        val caldavTasks =
+            tasksToPush.mapNotNull { toPush ->
+                caldavDao.getCaldavTaskById(toPush.caldavTaskId)?.let { toPush.task to it }
+            }
         for ((task, caldavTask) in caldavTasks) {
             if (task.isDeleted) {
-                client.deleteItem(collection, caldavTask)
-                        ?.let { changes.add(it) }
-                        ?: taskDeleter.delete(task)
+                client
+                    .deleteItem(collection, caldavTask)
+                    ?.let { changes.add(it) }
+                    ?: taskDeleter.delete(task)
             } else {
                 changes.add(
-                        client.updateItem(
-                            collection,
-                            caldavTask,
-                            iCal.toVtodo(account, caldavCalendar, caldavTask, task),
-                        )
+                    client.updateItem(
+                        collection,
+                        caldavTask,
+                        iCal.toVtodo(account, caldavCalendar, caldavTask, task),
+                    ),
                 )
             }
         }
