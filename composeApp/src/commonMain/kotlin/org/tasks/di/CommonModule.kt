@@ -82,6 +82,7 @@ import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.ProCardViewModel
 import org.tasks.viewmodel.TasksAccountViewModel
 import org.tasks.viewmodel.TaskListViewModel
+import org.tasks.viewmodel.DateAndTimeViewModel
 
 val commonModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
@@ -504,6 +505,7 @@ val commonModule = module {
             platformConfiguration = get(),
         )
     }
+    viewModelOf(::DateAndTimeViewModel)
 }
 
 expect fun platformModule(): Module

@@ -89,6 +89,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import co.touchlab.kermit.Logger
+import org.tasks.compose.settings.DateAndTimeScreen
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
@@ -193,6 +194,7 @@ import org.tasks.viewmodel.ProCardViewModel
 import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
 import org.tasks.viewmodel.TaskListViewModel
+import org.tasks.viewmodel.DateAndTimeViewModel
 import tasks.kmp.generated.resources.Res
 import tasks.kmp.generated.resources.add_account
 import tasks.kmp.generated.resources.add_platform_account
@@ -2250,6 +2252,31 @@ private fun SettingsScreen(
                             },
                         )
                     }
+                    is org.tasks.compose.settings.SettingsDestination.DateAndTime -> {
+                        val viewModel = koinViewModel<DateAndTimeViewModel>()
+                        val showAutoDismissInfo = viewModel.showAutoDismissInfo
+                        DateAndTimeScreen(
+                            fullDateEnabled = viewModel.fullDateEnabled,
+                            morningSummary = viewModel.morningSummary,
+                            afternoonSummary = viewModel.afternoonSummary,
+                            eveningSummary = viewModel.eveningSummary,
+                            nightSummary = viewModel.nightSummary,
+                            autoDismissListEnabled = viewModel.autoDismissListEnabled,
+                            autoDismissEditEnabled = viewModel.autoDismissEditEnabled,
+                            autoDismissWidgetEnabled = viewModel.autoDismissWidgetEnabled,
+                            onFullDate = { viewModel.updateFullDate(it) },
+                            onMorning = { /* TODO: show time picker */ },
+                            onAfternoon = { /* TODO: show time picker */ },
+                            onEvening = { /* TODO: show time picker */ },
+                            onNight = { /* TODO: show time picker */ },
+                            onAutoDismissInfo = { viewModel.openAutoDismissInfo() },
+                            onAutoDismissList = { viewModel.updateAutoDismissList(it) },
+                            onAutoDismissEdit = { viewModel.updateAutoDismissEdit(it) },
+                            onAutoDismissWidget = { viewModel.updateAutoDismissWidget(it) },
+                            showAutoDismissInfo = showAutoDismissInfo,
+                            onDismissAutoDismissInfo = { viewModel.dismissAutoDismissInfo() },
+                        )
+                    }
                     is org.tasks.compose.settings.SettingsDestination -> {
                         Scaffold(
                             topBar = {
@@ -2270,7 +2297,7 @@ private fun SettingsScreen(
                                         }
                                     },
                                 )
-                            },
+                            },                     
                         ) { padding ->
                             Box(
                                 modifier = Modifier
