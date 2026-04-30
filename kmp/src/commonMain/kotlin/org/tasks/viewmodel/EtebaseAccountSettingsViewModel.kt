@@ -276,15 +276,23 @@ open class EtebaseAccountSettingsViewModel(
 
     private suspend fun handleError(e: Exception) {
         Logger.e(e) { "Etebase account operation failed" }
+        val errorMessage = e.message ?: ""
+        val sanitizedMessage = sanitizeError(errorMessage)
         _state.update {
             it.copy(
                 snackbar = when (e) {
                     is UnauthorizedException -> getString(Res.string.invalid_username_or_password)
                     is ConnectionException -> getString(Res.string.network_error)
-                    else -> getString(Res.string.error_adding_account, e.message ?: "")
+                    else -> getString(Res.string.error_adding_account, sanitizedMessage)
                 }
             )
         }
+    }
+
+    private fun sanitizeError(message: String): String {
+        val password = _state.value.password
+        if (password.isEmpty()) return message
+        return message.replace(password, "***")
     }
 
     fun delete(onComplete: () -> Unit) {

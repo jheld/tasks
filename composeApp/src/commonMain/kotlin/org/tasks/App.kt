@@ -1293,6 +1293,7 @@ fun App(
                             )
                             BillingProvider.GOOGLE_PLAY ->
                                 storeBillingProvider?.storeBilling(suggestedPrice)
+                            BillingProvider.LOCAL -> null
                             null -> null
                         }
                         PricingScreen(
