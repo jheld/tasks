@@ -7,14 +7,12 @@ import at.bitfire.cert4android.DesktopUserDecisionRegistry
 import com.todoroo.astrid.alarms.AlarmService
 import com.todoroo.astrid.service.CommonUpgrades
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.factoryOf
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.tasks.PlatformConfiguration
-import org.tasks.TasksBuildConfig
 import org.tasks.analytics.PostHogReporting
 import org.tasks.analytics.Reporting
 import org.tasks.api.ApiListManager
@@ -32,9 +30,9 @@ import org.tasks.billing.BillingProvider
 import org.tasks.billing.PurchaseEntitlement
 import org.tasks.billing.DesktopLinkClient
 import org.tasks.billing.DesktopLinkClientImpl
-import org.tasks.billing.EntitlementSubscriptionProvider
 import org.tasks.billing.GitHubSponsorClient
 import org.tasks.billing.GitHubSponsorClientImpl
+import org.tasks.billing.LocalSubscriptionProvider
 import org.tasks.billing.SubscriptionProvider
 import org.tasks.caldav.FileStorage
 import org.tasks.caldav.VtodoCache
@@ -176,7 +174,7 @@ actual fun platformModule(): Module = module {
     single {
         PlatformConfiguration(
             versionCode = JvmBuildConfig.VERSION_CODE,
-            billingProvider = BillingProvider.STRIPE,
+            billingProvider = BillingProvider.LOCAL,
             thirdPartySyncRequiresPro = true,
             supportsCaldav = true,
             supportsEteSync = true,
@@ -375,17 +373,7 @@ actual fun platformModule(): Module = module {
         ).also { it.initialize() }
     }
     single<SubscriptionProvider> {
-        val tasksPreferences: TasksPreferences = get()
-        EntitlementSubscriptionProvider(
-            entitlement = get(),
-            debugPro = if (TasksBuildConfig.DEBUG) {
-                tasksPreferences.flow(TasksPreferences.debugPro, false)
-            } else {
-                flowOf(false)
-            },
-            googleAndMicrosoftRequirePro = true,
-            verifyBeforeSync = true,
-        )
+        LocalSubscriptionProvider()
     }
     single<DesktopLinkClient> {
         DesktopLinkClientImpl(

@@ -11,16 +11,14 @@ import at.bitfire.dav4jvm.ktor.exception.ServiceUnavailableException
 import at.bitfire.dav4jvm.ktor.exception.UnauthorizedException
 import at.bitfire.dav4jvm.property.caldav.CalendarColor
 import at.bitfire.dav4jvm.property.caldav.CalendarData
+import at.bitfire.dav4jvm.property.caldav.GetCTag
 import at.bitfire.dav4jvm.property.webdav.CurrentUserPrincipal
 import at.bitfire.dav4jvm.property.webdav.CurrentUserPrivilegeSet
-import at.bitfire.dav4jvm.property.caldav.GetCTag
 import at.bitfire.dav4jvm.property.webdav.DisplayName
 import at.bitfire.dav4jvm.property.webdav.GetETag
 import at.bitfire.dav4jvm.property.webdav.GetETag.Companion.fromHttpResponse
 import at.bitfire.dav4jvm.property.webdav.SyncToken
-import org.tasks.resources.getString
-import org.tasks.service.TaskDeleter
-import org.tasks.data.dao.DirtyDao
+import co.touchlab.kermit.Logger
 import io.ktor.client.HttpClient
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
@@ -28,9 +26,7 @@ import io.ktor.http.URLBuilder
 import io.ktor.http.Url
 import io.ktor.http.appendPathSegments
 import io.ktor.http.content.ByteArrayContent
-import tasks.kmp.generated.resources.Res
-import tasks.kmp.generated.resources.password_required
-import tasks.kmp.generated.resources.subscription_required
+import kotlinx.io.IOException
 import org.tasks.analytics.AnalyticsEvents.INITIAL_SYNC_COMPLETE
 import org.tasks.analytics.AnalyticsEvents.PARAM_TASK_COUNT
 import org.tasks.analytics.AnalyticsEvents.PARAM_TYPE
@@ -38,7 +34,6 @@ import org.tasks.analytics.AnalyticsEvents.SYNC_NOT_FOUND
 import org.tasks.analytics.AnalyticsEvents.SYNC_UNKNOWN_ACCESS
 import org.tasks.analytics.Constants
 import org.tasks.analytics.Reporting
-import org.tasks.time.DateTimeUtils2.currentTimeMillis
 import org.tasks.broadcast.RefreshBroadcaster
 import org.tasks.caldav.iCalendar.Companion.fromVtodo
 import org.tasks.caldav.metadata.TagMetadataSync
@@ -57,6 +52,7 @@ import org.tasks.caldav.property.ShareAccess.Companion.SHARED_OWNER
 import org.tasks.caldav.property.Sharee
 import org.tasks.data.UUIDHelper
 import org.tasks.data.dao.CaldavDao
+import org.tasks.data.dao.DirtyDao
 import org.tasks.data.dao.PrincipalDao
 import org.tasks.data.entity.CaldavAccount
 import org.tasks.data.entity.CaldavAccount.Companion.ERROR_PURCHASE_TOKEN_IN_USE
@@ -81,12 +77,18 @@ import org.tasks.data.entity.CaldavTask
 import org.tasks.data.entity.PrincipalAccess
 import org.tasks.data.entity.Task
 import org.tasks.http.NetworkException
-import co.touchlab.kermit.Logger
-import kotlinx.io.IOException
+import org.tasks.resources.getString
+import org.tasks.service.TaskDeleter
+import org.tasks.time.DateTimeUtils2.currentTimeMillis
+import tasks.kmp.generated.resources.Res
+import tasks.kmp.generated.resources.password_required
+import tasks.kmp.generated.resources.subscription_required
 
 private const val TAG = "CaldavSync"
 
-private class HomeSetNotFound(val notFound: HttpException) : Exception(notFound)
+private class HomeSetNotFound(
+    val notFound: HttpException,
+) : Exception(notFound)
 
 class CaldavSynchronizer(
     private val caldavDao: CaldavDao,
@@ -101,18 +103,24 @@ class CaldavSynchronizer(
     private val accountDataRepository: TasksAccountDataRepository,
     private val tagMetadataSync: TagMetadataSync,
 ) {
-    suspend fun sync(account: CaldavAccount, hasPro: Boolean) {
+    suspend fun sync(
+        account: CaldavAccount,
+        hasPro: Boolean,
+    ) {
         Logger.d(TAG) { "Synchronizing $account" }
         if (!hasPro && !account.isTasksOrg) {
             setError(account, getString(Res.string.subscription_required))
             return
         }
         if (account.password.isNullOrBlank()) {
-            setError(account, if (account.isTasksOrg) {
-                ERROR_UNAUTHORIZED
-            } else {
-                getString(Res.string.password_required)
-            })
+            setError(
+                account,
+                if (account.isTasksOrg) {
+                    ERROR_UNAUTHORIZED
+                } else {
+                    getString(Res.string.password_required)
+                },
+            )
             return
         }
         try {
@@ -123,7 +131,7 @@ class CaldavSynchronizer(
                 reporting.logEvent(
                     INITIAL_SYNC_COMPLETE,
                     PARAM_TYPE to syncType,
-                    PARAM_TASK_COUNT to taskCount
+                    PARAM_TASK_COUNT to taskCount,
                 )
             }
             account.lastSync = currentTimeMillis()
@@ -147,9 +155,12 @@ class CaldavSynchronizer(
             Logger.e(e.notFound) { "$account: ${e.notFound.message}" }
             setError(account, e.notFound.displayMessage)
         } catch (e: HttpException) {
-            when(e.statusCode) {
+            when (e.statusCode) {
                 402, 405, 451, in 500..599 -> {}
-                else -> { reporting.reportException(e) }
+
+                else -> {
+                    reporting.reportException(e)
+                }
             }
             Logger.e(e) { "$account: ${e.message}" }
             setError(account, e.displayMessage)
@@ -161,107 +172,129 @@ class CaldavSynchronizer(
         }
     }
 
-    private suspend fun synchronize(account: CaldavAccount) = provider.forAccount(account).use { caldavClient ->
-        var serverType = account.serverType
+    private suspend fun synchronize(account: CaldavAccount) =
+        provider.forAccount(account).use { caldavClient ->
+            var serverType = account.serverType
 
-        // Check guest status for Tasks.org accounts
-        val isGuest = if (caldavClient is TasksClient) {
-            try {
-                accountDataRepository.fetchAndCache(caldavClient)?.guest ?: false
-            } catch (e: Exception) {
-                Logger.e(e) { "Failed to fetch account data" }
-                accountDataRepository.getAccountResponse()?.guest ?: false
+            // Check guest status for Tasks.org accounts
+            val isGuest =
+                if (caldavClient is TasksClient) {
+                    try {
+                        accountDataRepository.fetchAndCache(caldavClient)?.guest ?: false
+                    } catch (e: Exception) {
+                        Logger.e(e) { "Failed to fetch account data" }
+                        accountDataRepository.getAccountResponse()?.guest ?: false
+                    }
+                } else {
+                    false
+                }
+
+            val resources =
+                try {
+                    caldavClient.calendars { headers ->
+                        if (serverType == SERVER_UNKNOWN) {
+                            serverType = getServerType(account, headers)
+                        }
+                    }
+                } catch (e: HttpException) {
+                    throw if (e.statusCode == 404) HomeSetNotFound(e) else e
+                }
+            if (serverType != account.serverType) {
+                account.serverType = serverType
+                caldavDao.update(account)
             }
-        } else false
-
-        val resources = try {
-            caldavClient.calendars { headers ->
-                if (serverType == SERVER_UNKNOWN) {
-                    serverType = getServerType(account, headers)
+            val urls = resources.map { it.href.toString() }.toHashSet()
+            for (calendar in caldavDao.findDeletedCalendars(account.uuid!!, ArrayList(urls))) {
+                if (isDeletedRemotely(caldavClient, calendar)) {
+                    taskDeleter.delete(calendar)
                 }
             }
-        } catch (e: HttpException) {
-            throw if (e.statusCode == 404) HomeSetNotFound(e) else e
-        }
-        if (serverType != account.serverType) {
-            account.serverType = serverType
-            caldavDao.update(account)
-        }
-        val urls = resources.map { it.href.toString() }.toHashSet()
-        for (calendar in caldavDao.findDeletedCalendars(account.uuid!!, ArrayList(urls))) {
-            if (isDeletedRemotely(caldavClient, calendar)) {
-                taskDeleter.delete(calendar)
-            }
-        }
-        val metadataPulled = if (tagMetadataSync.isPrimary(account)) {
-            tagMetadataSync.pullMetadata(account, caldavClient)
-        } else {
-            null
-        }
-        for (resource in resources) {
-            val url = resource.href.toString()
-            var calendar = caldavDao.getCalendarByUrl(account.uuid!!, url)
-            val remoteName = resource[DisplayName::class]!!.displayName
-            val color = resource[CalendarColor::class]?.color ?: 0
-            val rawAccess = resource.accessLevel
-            val guestOwned = isGuest && rawAccess == ACCESS_OWNER
-            val access = if (guestOwned) ACCESS_READ_ONLY else rawAccess
-            val icon = resource[CalendarIcon::class]?.icon?.takeIf { it.isNotBlank() }
+            val metadataPulled =
+                if (tagMetadataSync.isPrimary(account)) {
+                    tagMetadataSync.pullMetadata(account, caldavClient)
+                } else {
+                    null
+                }
+            for (resource in resources) {
+                val url = resource.href.toString()
+                var calendar = caldavDao.getCalendarByUrl(account.uuid!!, url)
+                val remoteName = resource[DisplayName::class]!!.displayName
+                val color = resource[CalendarColor::class]?.color ?: 0
+                val rawAccess = resource.accessLevel
+                val guestOwned = isGuest && rawAccess == ACCESS_OWNER
+                val access = if (guestOwned) ACCESS_READ_ONLY else rawAccess
+                val icon = resource[CalendarIcon::class]?.icon?.takeIf { it.isNotBlank() }
 
-            if (rawAccess == ACCESS_UNKNOWN) {
-                reporting.logEvent(
-                    SYNC_UNKNOWN_ACCESS,
-                    PARAM_TYPE to
-                            (resource[ShareAccess::class]?.access?.toString() ?: "???")
-                )
+                if (rawAccess == ACCESS_UNKNOWN) {
+                    reporting.logEvent(
+                        SYNC_UNKNOWN_ACCESS,
+                        PARAM_TYPE to
+                            (resource[ShareAccess::class]?.access?.toString() ?: "???"),
+                    )
+                }
+                if (calendar == null) {
+                    calendar =
+                        CaldavCalendar(
+                            name = remoteName,
+                            account = account.uuid,
+                            url = url,
+                            uuid = UUIDHelper.newUUID(),
+                            color = color,
+                            access = access,
+                            icon = icon,
+                        )
+                    caldavDao.insert(calendar)
+                } else if (calendar.name != remoteName ||
+                    calendar.color != color ||
+                    calendar.access != access ||
+                    (icon != null && calendar.icon != icon)
+                ) {
+                    calendar =
+                        calendar.copy(
+                            color = color,
+                            name = remoteName,
+                            access = access,
+                            icon = icon ?: calendar.icon,
+                        )
+                    caldavDao.update(calendar)
+                    refreshBroadcaster.broadcastRefresh()
+                }
+                resource
+                    .principals(account, calendar)
+                    .let { principalDao.deleteRemoved(calendar.id, it.map(PrincipalAccess::id)) }
+                fetchChanges(account, calendar, resource, caldavClient.httpClient)
+                when {
+                    guestOwned -> {
+                        pushLocalChanges(
+                            account,
+                            calendar,
+                            caldavClient.httpClient,
+                            resource.href,
+                            deleteOnly = true,
+                        )
+                    }
+
+                    calendar.access != ACCESS_READ_ONLY -> {
+                        pushLocalChanges(
+                            account,
+                            calendar,
+                            caldavClient.httpClient,
+                            resource.href,
+                        )
+                    }
+                }
             }
-            if (calendar == null) {
-                calendar = CaldavCalendar(
-                    name = remoteName,
-                    account = account.uuid,
-                    url = url,
-                    uuid = UUIDHelper.newUUID(),
-                    color = color,
-                    access = access,
-                    icon = icon,
-                )
-                caldavDao.insert(calendar)
-            } else if (calendar.name != remoteName
-                || calendar.color != color
-                || calendar.access != access
-                || (icon != null && calendar.icon != icon)
+            if (metadataPulled != null &&
+                tagMetadataSync.pushAndReap(account, caldavClient, metadataPulled)
             ) {
-                calendar = calendar.copy(
-                    color = color,
-                    name = remoteName,
-                    access = access,
-                    icon = icon ?: calendar.icon,
-                )
-                caldavDao.update(calendar)
                 refreshBroadcaster.broadcastRefresh()
             }
-            resource
-                .principals(account, calendar)
-                .let { principalDao.deleteRemoved(calendar.id, it.map(PrincipalAccess::id)) }
-            fetchChanges(account, calendar, resource, caldavClient.httpClient)
-            when {
-                guestOwned -> pushLocalChanges(
-                    account, calendar, caldavClient.httpClient, resource.href,
-                    deleteOnly = true
-                )
-                calendar.access != ACCESS_READ_ONLY -> pushLocalChanges(
-                    account, calendar, caldavClient.httpClient, resource.href
-                )
-            }
         }
-        if (metadataPulled != null &&
-            tagMetadataSync.pushAndReap(account, caldavClient, metadataPulled)
-        ) {
-            refreshBroadcaster.broadcastRefresh()
-        }
-    }
 
-    private suspend fun isDeletedRemotely(client: CaldavClient, calendar: CaldavCalendar): Boolean {
+    private suspend fun isDeletedRemotely(
+        client: CaldavClient,
+        calendar: CaldavCalendar,
+    ): Boolean {
         val url = calendar.url?.takeIf { it.isNotBlank() } ?: return true
         return try {
             val response = client.calendar(url.toCaldavUrl())
@@ -295,27 +328,50 @@ class CaldavSynchronizer(
         }
     }
 
-    private fun getServerType(account: CaldavAccount, headers: Headers): Int {
+    private fun getServerType(
+        account: CaldavAccount,
+        headers: Headers,
+    ): Int {
         val dav = headers.getAll("DAV")?.joinToString(",")
         return when {
-            account.isTasksOrg -> SERVER_TASKS
-            dav?.contains("oc-resource-sharing") == true ->
-                if (dav.contains("nextcloud-") || dav.contains("nc-"))
+            account.isTasksOrg -> {
+                SERVER_TASKS
+            }
+
+            dav?.contains("oc-resource-sharing") == true -> {
+                if (dav.contains("nextcloud-") || dav.contains("nc-")) {
                     SERVER_NEXTCLOUD
-                else
+                } else {
                     SERVER_OWNCLOUD
-            headers["x-sabre-version"]?.isNotBlank() == true -> SERVER_SABREDAV
-            headers["server"] == "Openexchange WebDAV" -> SERVER_OPEN_XCHANGE
-            else -> SERVER_UNKNOWN
+                }
+            }
+
+            headers["x-sabre-version"]?.isNotBlank() == true -> {
+                SERVER_SABREDAV
+            }
+
+            headers["server"] == "Openexchange WebDAV" -> {
+                SERVER_OPEN_XCHANGE
+            }
+
+            else -> {
+                SERVER_UNKNOWN
+            }
         }
     }
 
-    private suspend fun setError(account: CaldavAccount, throwable: Throwable) {
+    private suspend fun setError(
+        account: CaldavAccount,
+        throwable: Throwable,
+    ) {
         Logger.e(throwable) { "$account: ${throwable.message}" }
         setError(account, throwable.message)
     }
 
-    private suspend fun setError(account: CaldavAccount, message: String?) {
+    private suspend fun setError(
+        account: CaldavAccount,
+        message: String?,
+    ) {
         if (!message.isNullOrBlank()) {
             Logger.e(TAG) { "$account: $message" }
         }
@@ -331,7 +387,7 @@ class CaldavSynchronizer(
         account: CaldavAccount,
         caldavCalendar: CaldavCalendar,
         resource: Response,
-        httpClient: HttpClient
+        httpClient: HttpClient,
     ) {
         val httpUrl = resource.href
         val remoteCtag = resource.ctag
@@ -342,13 +398,14 @@ class CaldavSynchronizer(
         Logger.d(TAG) { "updating $caldavCalendar" }
         val davCalendar = DavCalendar(httpClient, httpUrl)
         val members = davCalendar.calendarQuery("VTODO", null, null).members()
-        val changed = members.filter { vCard: Response ->
-            val eTag = vCard[GetETag::class]?.eTag
-            if (eTag.isNullOrBlank()) {
-                return@filter false
+        val changed =
+            members.filter { vCard: Response ->
+                val eTag = vCard[GetETag::class]?.eTag
+                if (eTag.isNullOrBlank()) {
+                    return@filter false
+                }
+                eTag != caldavDao.getTask(caldavCalendar.uuid!!, vCard.hrefName())?.etag
             }
-            eTag != caldavDao.getTask(caldavCalendar.uuid!!, vCard.hrefName())?.etag
-        }
         val unusable = mutableListOf<Url>()
         for (items in changed.chunked(30)) {
             val urls = items.map { it.href }
@@ -363,8 +420,9 @@ class CaldavSynchronizer(
                     unusable += url
                     continue
                 }
-                val eTag = vCard[GetETag::class]?.eTag?.takeIf { it.isNotBlank() }
-                    ?: queriedETags[fileName]
+                val eTag =
+                    vCard[GetETag::class]?.eTag?.takeIf { it.isNotBlank() }
+                        ?: queriedETags[fileName]
                 if (eTag.isNullOrBlank()) {
                     Logger.e(TAG) { "Received CalDAV GET response without ETag for $url" }
                     unusable += url
@@ -387,18 +445,18 @@ class CaldavSynchronizer(
         }
         if (unusable.isNotEmpty()) {
             reporting.reportException(
-                DavException("Unusable multiget responses for ${unusable.size} resources: ${unusable.joinToString(limit = 10)}")
+                DavException("Unusable multiget responses for ${unusable.size} resources: ${unusable.joinToString(limit = 10)}"),
             )
         }
         caldavDao
-                .getRemoteObjects(caldavCalendar.uuid!!)
-                .subtract(members.map { it.hrefName() })
-                .takeIf { it.isNotEmpty() }
-                ?.let {
-                    Logger.d(TAG) { "DELETED $it" }
-                    val tasks = caldavDao.getTasks(caldavCalendar.uuid!!, it.toList())
-                    taskDeleter.delete(tasks.map { it.task })
-                }
+            .getRemoteObjects(caldavCalendar.uuid!!)
+            .subtract(members.map { it.hrefName() })
+            .takeIf { it.isNotEmpty() }
+            ?.let {
+                Logger.d(TAG) { "DELETED $it" }
+                val tasks = caldavDao.getTasks(caldavCalendar.uuid!!, it.toList())
+                taskDeleter.delete(tasks.map { it.task })
+            }
         caldavCalendar.ctag = remoteCtag
         Logger.d(TAG) { "UPDATE $caldavCalendar" }
         caldavDao.update(caldavCalendar)
@@ -427,20 +485,22 @@ class CaldavSynchronizer(
         httpClient: HttpClient,
         httpUrl: Url,
         calendar: CaldavCalendar,
-        caldavTask: CaldavTask
+        caldavTask: CaldavTask,
     ): Boolean {
         try {
-            val objectId = caldavTask.obj
-                ?: run {
-                    Logger.e(TAG) { "null obj for caldavTask.id=${caldavTask.id} task.id=${caldavTask.task}" }
-                    caldavTask.obj = caldavTask.remoteId?.let { CaldavTask.objectName(it) }
-                    caldavTask.obj
-                }
+            val objectId =
+                caldavTask.obj
+                    ?: run {
+                        Logger.e(TAG) { "null obj for caldavTask.id=${caldavTask.id} task.id=${caldavTask.task}" }
+                        caldavTask.obj = caldavTask.remoteId?.let { CaldavTask.objectName(it) }
+                        caldavTask.obj
+                    }
             if (objectId?.isNotBlank() == true) {
-                val remote = DavResource(
-                    httpClient = httpClient,
-                    location = httpUrl.child(objectId),
-                )
+                val remote =
+                    DavResource(
+                        httpClient = httpClient,
+                        location = httpUrl.child(objectId),
+                    )
                 remote.delete {}
             }
         } catch (e: HttpException) {
@@ -463,7 +523,7 @@ class CaldavSynchronizer(
         caldavTaskId: Long,
         dirtyVersion: Long?,
         httpClient: HttpClient,
-        httpUrl: Url
+        httpUrl: Url,
     ) {
         val caldavTask = caldavDao.getCaldavTaskById(caldavTaskId) ?: return
         Logger.d(TAG) { "pushing caldavTask=$caldavTask task=$task" }
@@ -476,19 +536,21 @@ class CaldavSynchronizer(
         dirtyDao.withDirtyVersion(caldavTaskId, dirtyVersion) {
             val data = iCal.toVtodo(account, calendar, caldavTask, task)
             val requestBody = ByteArrayContent(data, MIME_ICALENDAR)
-            val objPath = caldavTask.obj
-                ?: run {
-                    Logger.e(TAG) { "null obj for caldavTask.id=${caldavTask.id} task.id=${task.id}" }
-                    caldavTask.obj = caldavTask.remoteId?.let { CaldavTask.objectName(it) }
-                    caldavTask.obj
-                }
-                ?: throw IllegalStateException("Push failed - missing UUID")
+            val objPath =
+                caldavTask.obj
+                    ?: run {
+                        Logger.e(TAG) { "null obj for caldavTask.id=${caldavTask.id} task.id=${task.id}" }
+                        caldavTask.obj = caldavTask.remoteId?.let { CaldavTask.objectName(it) }
+                        caldavTask.obj
+                    }
+                    ?: throw IllegalStateException("Push failed - missing UUID")
 
             try {
-                val remote = DavResource(
-                    httpClient = httpClient,
-                    location = httpUrl.child(objPath),
-                )
+                val remote =
+                    DavResource(
+                        httpClient = httpClient,
+                        location = httpUrl.child(objPath),
+                    )
                 remote.put(requestBody) {
                     fromHttpResponse(it)?.eTag?.takeIf(String::isNotBlank)?.let { etag ->
                         caldavTask.etag = etag
@@ -506,48 +568,50 @@ class CaldavSynchronizer(
 
     suspend fun Response.principals(
         account: CaldavAccount,
-        list: CaldavCalendar
+        list: CaldavCalendar,
     ): List<PrincipalAccess> {
         val access = ArrayList<PrincipalAccess>()
         this[Invite::class]
             ?.sharees
             ?.filter { it.href?.let { href -> !isCurrentUser(href) } ?: false }
             ?.map {
-                val principal = principalDao.getOrCreatePrincipal(
-                    account,
-                    it.href!!,
-                    it.properties
-                        .find { p -> p is DisplayName }
-                        ?.let { name -> (name as DisplayName).displayName }
-                )
+                val principal =
+                    principalDao.getOrCreatePrincipal(
+                        account,
+                        it.href!!,
+                        it.properties
+                            .find { p -> p is DisplayName }
+                            ?.let { name -> (name as DisplayName).displayName },
+                    )
                 principalDao.getOrCreateAccess(
                     list,
                     principal,
                     invite = it.response?.toStatus ?: INVITE_UNKNOWN,
-                    access = it.access?.access?.toAccess ?: ACCESS_UNKNOWN
+                    access = it.access?.access?.toAccess ?: ACCESS_UNKNOWN,
                 )
-            }
-            ?.let { access.addAll(it) }
-        this[OCInvite::class]?.users
+            }?.let { access.addAll(it) }
+        this[OCInvite::class]
+            ?.users
             ?.map {
                 val principal = principalDao.getOrCreatePrincipal(account, it.href)
                 principalDao.getOrCreateAccess(
                     list,
                     principal,
                     it.response.toStatus,
-                    it.access.access.toAccess
+                    it.access.access.toAccess,
                 )
-            }
-            ?.let {
+            }?.let {
                 if (!isOwncloudOwner) {
                     this@principals[OCOwnerPrincipal::class]?.owner?.let { href ->
                         val principal = principalDao.getOrCreatePrincipal(account, href)
-                        access.add(principalDao.getOrCreateAccess(
-                            list,
-                            principal,
-                            INVITE_ACCEPTED,
-                            ACCESS_OWNER
-                        ))
+                        access.add(
+                            principalDao.getOrCreateAccess(
+                                list,
+                                principal,
+                                INVITE_ACCEPTED,
+                                ACCESS_OWNER,
+                            ),
+                        )
                     }
                 }
                 access.addAll(it)
@@ -559,20 +623,20 @@ class CaldavSynchronizer(
         private val GONE_STATUSES = setOf(403, 404, 410)
 
         private val HttpException.displayMessage: String
-            get() = HttpStatusCode
-                .fromValue(statusCode)
-                .description
-                .takeIf { it.isNotBlank() && it != UNKNOWN_STATUS }
-                ?.let { "HTTP $statusCode - $it" }
-                ?: "HTTP $statusCode"
+            get() =
+                HttpStatusCode
+                    .fromValue(statusCode)
+                    .description
+                    .takeIf { it.isNotBlank() && it != UNKNOWN_STATUS }
+                    ?.let { "HTTP $statusCode - $it" }
+                    ?: "HTTP $statusCode"
 
         private const val UNKNOWN_STATUS = "Unknown Status Code"
 
         val Response.ctag: String?
             get() = this[SyncToken::class]?.token ?: this[GetCTag::class]?.cTag
 
-        private fun Url.child(segment: String): Url =
-            URLBuilder(this).appendPathSegments(segment, encodeSlash = true).build()
+        private fun Url.child(segment: String): Url = URLBuilder(this).appendPathSegments(segment, encodeSlash = true).build()
 
         val Response.accessLevel: Int
             get() {
@@ -591,29 +655,30 @@ class CaldavSynchronizer(
                     false -> ACCESS_READ_ONLY
                     else -> ACCESS_READ_WRITE
                 }
-        }
+            }
 
         private val Response.isOwncloudOwner: Boolean
             get() = this[OCOwnerPrincipal::class]?.owner?.let { isCurrentUser(it) } ?: false
 
-        private fun Response.isCurrentUser(href: String) =
-            this[CurrentUserPrincipal::class]?.href?.endsWith("$href/") == true
+        private fun Response.isCurrentUser(href: String) = this[CurrentUserPrincipal::class]?.href?.endsWith("$href/") == true
 
         private val Property.Name.toAccess: Int
-            get() = when (this) {
-                SHARED_OWNER, OCAccess.SHARED_OWNER -> ACCESS_OWNER
-                READ_WRITE, OCAccess.READ_WRITE -> ACCESS_READ_WRITE
-                READ, OCAccess.READ -> ACCESS_READ_ONLY
-                else -> ACCESS_UNKNOWN
-            }
+            get() =
+                when (this) {
+                    SHARED_OWNER, OCAccess.SHARED_OWNER -> ACCESS_OWNER
+                    READ_WRITE, OCAccess.READ_WRITE -> ACCESS_READ_WRITE
+                    READ, OCAccess.READ -> ACCESS_READ_ONLY
+                    else -> ACCESS_UNKNOWN
+                }
 
         private val Property.Name.toStatus: Int
-            get() = when (this) {
-                Sharee.INVITE_ACCEPTED, OCUser.INVITE_ACCEPTED -> INVITE_ACCEPTED
-                Sharee.INVITE_NORESPONSE, OCUser.INVITE_NORESPONSE -> INVITE_NO_RESPONSE
-                Sharee.INVITE_DECLINED, OCUser.INVITE_DECLINED -> INVITE_DECLINED
-                Sharee.INVITE_INVALID, OCUser.INVITE_INVALID -> INVITE_INVALID
-                else -> INVITE_UNKNOWN
-            }
+            get() =
+                when (this) {
+                    Sharee.INVITE_ACCEPTED, OCUser.INVITE_ACCEPTED -> INVITE_ACCEPTED
+                    Sharee.INVITE_NORESPONSE, OCUser.INVITE_NORESPONSE -> INVITE_NO_RESPONSE
+                    Sharee.INVITE_DECLINED, OCUser.INVITE_DECLINED -> INVITE_DECLINED
+                    Sharee.INVITE_INVALID, OCUser.INVITE_INVALID -> INVITE_INVALID
+                    else -> INVITE_UNKNOWN
+                }
     }
 }
