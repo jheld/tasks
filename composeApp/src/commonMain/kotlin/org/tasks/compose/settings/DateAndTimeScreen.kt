@@ -3,20 +3,29 @@ package org.tasks.compose.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateAndTimeScreen(
     fullDateEnabled: Boolean,
@@ -28,10 +37,10 @@ fun DateAndTimeScreen(
     autoDismissEditEnabled: Boolean,
     autoDismissWidgetEnabled: Boolean,
     onFullDate: (Boolean) -> Unit,
-    onMorning: () -> Unit,
-    onAfternoon: () -> Unit,
-    onEvening: () -> Unit,
-    onNight: () -> Unit,
+    onMorning: (Int) -> Unit,
+    onAfternoon: (Int) -> Unit,
+    onEvening: (Int) -> Unit,
+    onNight: (Int) -> Unit,
     onAutoDismissInfo: () -> Unit,
     onAutoDismissList: (Boolean) -> Unit,
     onAutoDismissEdit: (Boolean) -> Unit,
@@ -39,6 +48,11 @@ fun DateAndTimeScreen(
     showAutoDismissInfo: Boolean = false,
     onDismissAutoDismissInfo: () -> Unit = {},
 ) {
+    var showMorningPicker by remember { mutableStateOf(false) }
+    var showAfternoonPicker by remember { mutableStateOf(false) }
+    var showEveningPicker by remember { mutableStateOf(false) }
+    var showNightPicker by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,28 +81,28 @@ fun DateAndTimeScreen(
                 PreferenceRow(
                     title = "Morning",
                     summary = morningSummary,
-                    onClick = onMorning,
+                    onClick = { showMorningPicker = true },
                 )
             }
             SettingsItemCard(position = CardPosition.Middle) {
                 PreferenceRow(
                     title = "Afternoon",
                     summary = afternoonSummary,
-                    onClick = onAfternoon,
+                    onClick = { showAfternoonPicker = true },
                 )
             }
             SettingsItemCard(position = CardPosition.Middle) {
                 PreferenceRow(
                     title = "Evening",
                     summary = eveningSummary,
-                    onClick = onEvening,
+                    onClick = { showEveningPicker = true },
                 )
             }
             SettingsItemCard(position = CardPosition.Last) {
                 PreferenceRow(
                     title = "Night",
                     summary = nightSummary,
-                    onClick = onNight,
+                    onClick = { showNightPicker = true },
                 )
             }
         }
@@ -132,16 +146,90 @@ fun DateAndTimeScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         if (showAutoDismissInfo) {
-            AlertDialog(
+            BasicAlertDialog(
                 onDismissRequest = onDismissAutoDismissInfo,
-                title = { Text("Auto-dismiss date time picker") },
-                text = { Text("When enabled, the date time picker will automatically close after you select a time. This can be useful for quickly setting times without having to manually close the picker.") },
-                confirmButton = {
-                    TextButton(onClick = onDismissAutoDismissInfo) {
-                        Text("OK")
+            ) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Text(
+                            text = "Auto-dismiss date time picker",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+                        Text(
+                            text = "When enabled, the date time picker will automatically close after you select a time. This can be useful for quickly setting times without having to manually close the picker.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(bottom = 24.dp),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            TextButton(onClick = onDismissAutoDismissInfo) {
+                                Text("OK")
+                            }
+                        }
                     }
+                }
+            }
+        }
+
+        if (showMorningPicker) {
+            TimePickerDialog(
+                initialTimeMillis = parseTimeString(morningSummary),
+                onTimeSelected = {
+                    onMorning(it)
+                    showMorningPicker = false
                 },
+                onDismiss = { showMorningPicker = false },
             )
         }
+
+        if (showAfternoonPicker) {
+            TimePickerDialog(
+                initialTimeMillis = parseTimeString(afternoonSummary),
+                onTimeSelected = {
+                    onAfternoon(it)
+                    showAfternoonPicker = false
+                },
+                onDismiss = { showAfternoonPicker = false },
+            )
+        }
+
+        if (showEveningPicker) {
+            TimePickerDialog(
+                initialTimeMillis = parseTimeString(eveningSummary),
+                onTimeSelected = {
+                    onEvening(it)
+                    showEveningPicker = false
+                },
+                onDismiss = { showEveningPicker = false },
+            )
+        }
+
+        if (showNightPicker) {
+            TimePickerDialog(
+                initialTimeMillis = parseTimeString(nightSummary),
+                onTimeSelected = {
+                    onNight(it)
+                    showNightPicker = false
+                },
+                onDismiss = { showNightPicker = false },
+            )
+        }
+    }
+}
+
+fun parseTimeString(timeString: String): Int {
+    return try {
+        val parts = timeString.split(":")
+        val hour = parts[0].toInt()
+        val minute = parts[1].toInt()
+        (hour * 3600 + minute * 60) * 1000
+    } catch (e: Exception) {
+        9 * 3600 * 1000 // Default to 9:00
     }
 }
