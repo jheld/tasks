@@ -92,6 +92,8 @@ import co.touchlab.kermit.Logger
 import org.tasks.compose.settings.DateAndTimeScreen
 import org.tasks.compose.settings.NavigationDrawerScreen
 import org.tasks.compose.settings.NavigationDrawerViewModel
+import org.tasks.compose.settings.NavigationDrawerCustomization
+import org.tasks.compose.settings.NavigationDrawerCustomizationViewModel
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
@@ -246,6 +248,10 @@ data class PricingDestination(
     val mode: PricingMode = PricingMode.BOTH,
     val source: String = AnalyticsEvents.SOURCE_SETTINGS,
 ) : NavKey
+data object NavigationDrawerDestination : NavKey
+
+@Serializable
+data object CustomizeDrawerDestination : NavKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -295,6 +301,8 @@ fun App(
                             subclass(LinkDesktopDestination::class, LinkDesktopDestination.serializer())
                             subclass(DesktopProDestination::class, DesktopProDestination.serializer())
                             subclass(PricingDestination::class, PricingDestination.serializer())
+                            subclass(NavigationDrawerDestination::class, NavigationDrawerDestination.serializer())
+                            subclass(CustomizeDrawerDestination::class, CustomizeDrawerDestination.serializer())
                         }
                     }
                 },
@@ -459,6 +467,7 @@ fun App(
                                 backStack.add(PricingDestination(mode = PricingMode.CLOUD_ONLY, source = "sign_in"))
                             },
                             onSubscribedClick = { showManageSheet = true },
+                            onNavigateToNavigationDrawer = { backStack.add(NavigationDrawerDestination) },
                         )
                         if (showManageSheet) {
                             val isGitHubSponsor = subscriptionInfo?.isGitHubSponsor == true
@@ -681,6 +690,39 @@ fun App(
                             onDismiss = { addAccountViewModel.dismissError() },
                             reporting = reporting,
                             onPaymentRequired = {},
+                        )
+                    }
+                    entry<NavigationDrawerDestination> {
+                        val viewModel = koinViewModel<NavigationDrawerViewModel>()
+                        NavigationDrawerScreen(
+                            filtersEnabled = viewModel.filtersEnabled,
+                            showToday = viewModel.showToday,
+                            showRecentlyModified = viewModel.showRecentlyModified,
+                            tagsEnabled = viewModel.tagsEnabled,
+                            hideUnusedTags = viewModel.hideUnusedTags,
+                            placesEnabled = viewModel.placesEnabled,
+                            hideUnusedPlaces = viewModel.hideUnusedPlaces,
+                            onCustomizeDrawer = { backStack.add(CustomizeDrawerDestination) },
+                            onFiltersEnabled = { viewModel.updateFiltersEnabled(it) },
+                            onShowToday = { viewModel.updateShowToday(it) },
+                            onShowRecentlyModified = { viewModel.updateShowRecentlyModified(it) },
+                            onTagsEnabled = { viewModel.updateTagsEnabled(it) },
+                            onHideUnusedTags = { viewModel.updateHideUnusedTags(it) },
+                            onPlacesEnabled = { viewModel.updatePlacesEnabled(it) },
+                            onHideUnusedPlaces = { viewModel.updateHideUnusedPlaces(it) },
+                        )
+                    }
+                    entry<CustomizeDrawerDestination> {
+                        val viewModel = koinViewModel<NavigationDrawerCustomizationViewModel>()
+                        val items by viewModel.items.collectAsState(emptyList())
+                        NavigationDrawerCustomization(
+                            items = items,
+                            onBack = { backStack.removeLastOrNull() },
+                            onReorder = { from, to -> viewModel.swapItems(from, to) },
+                            onItemClick = { item ->
+                                // TODO: navigate to item settings based on type
+                            },
+                            onReset = { viewModel.resetOrders() },
                         )
                     }
                 },
@@ -2099,6 +2141,7 @@ private fun SettingsScreen(
     onMigrateToCloud: () -> Unit = {},
     onSignInClick: () -> Unit = {},
     onSubscribedClick: () -> Unit = {},
+    onNavigateToNavigationDrawer: () -> Unit = {},
 ) {
     val viewModel = koinViewModel<MainSettingsViewModel>()
     val proCardViewModel = koinViewModel<ProCardViewModel>()
@@ -2206,11 +2249,15 @@ private fun SettingsScreen(
                         },
                         onAddAccountClick = onAddAccountClick,
                         onSettingsClick = { destination ->
-                            scope.launch {
-                                navigator.navigateTo(
-                                    ListDetailPaneScaffoldRole.Detail,
-                                    destination,
-                                )
+                            if (destination == org.tasks.compose.settings.SettingsDestination.NavigationDrawer) {
+                                onNavigateToNavigationDrawer()
+                            } else {
+                                scope.launch {
+                                    navigator.navigateTo(
+                                        ListDetailPaneScaffoldRole.Detail,
+                                        destination,
+                                    )
+                                }
                             }
                         },
                         onProCardClick = {

@@ -26,6 +26,7 @@ import org.tasks.caldav.iCalendar
 import org.tasks.calendars.CalendarHelper
 import org.tasks.compose.chips.ChipDataProvider
 import org.tasks.compose.settings.NavigationDrawerViewModel
+import org.tasks.compose.settings.NavigationDrawerCustomizationViewModel
 import org.tasks.viewmodel.DateAndTimeViewModel
 import org.tasks.data.MergedGeofence
 import org.tasks.data.TaskSaver
@@ -508,6 +509,7 @@ val commonModule = module {
     }
     viewModelOf(::DateAndTimeViewModel)
     viewModelOf(::NavigationDrawerViewModel)
+    viewModelOf(::NavigationDrawerCustomizationViewModel)
 }
 
 expect fun platformModule(): Module
