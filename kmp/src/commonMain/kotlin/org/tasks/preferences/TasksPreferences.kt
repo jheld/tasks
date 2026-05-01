@@ -79,5 +79,12 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         val autoDismissDateTimeList = booleanPreferencesKey("p_auto_dismiss_datetime_list_screen")
         val autoDismissDateTimeEdit = booleanPreferencesKey("p_auto_dismiss_datetime_edit_screen")
         val autoDismissDateTimeWidget = booleanPreferencesKey("p_auto_dismiss_datetime_widget")
+        val filtersEnabled = booleanPreferencesKey("p_filters_enabled")
+        val showTodayFilter = booleanPreferencesKey("p_show_today_filter")
+        val showRecentlyModifiedFilter = booleanPreferencesKey("p_show_recently_modified_filter")
+        val tagsEnabled = booleanPreferencesKey("p_tags_enabled")
+        val tagsHideUnused = booleanPreferencesKey("p_tags_hide_unused")
+        val placesEnabled = booleanPreferencesKey("p_places_enabled")
+        val placesHideUnused = booleanPreferencesKey("p_places_hide_unused")
     }
 }

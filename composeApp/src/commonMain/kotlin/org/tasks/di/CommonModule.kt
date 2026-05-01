@@ -25,6 +25,8 @@ import org.tasks.caldav.TasksAccountDataRepository
 import org.tasks.caldav.iCalendar
 import org.tasks.calendars.CalendarHelper
 import org.tasks.compose.chips.ChipDataProvider
+import org.tasks.compose.settings.NavigationDrawerViewModel
+import org.tasks.viewmodel.DateAndTimeViewModel
 import org.tasks.data.MergedGeofence
 import org.tasks.data.TaskSaver
 import org.tasks.data.db.Database
@@ -82,7 +84,6 @@ import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.ProCardViewModel
 import org.tasks.viewmodel.TasksAccountViewModel
 import org.tasks.viewmodel.TaskListViewModel
-import org.tasks.viewmodel.DateAndTimeViewModel
 
 val commonModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
@@ -506,6 +507,7 @@ val commonModule = module {
         )
     }
     viewModelOf(::DateAndTimeViewModel)
+    viewModelOf(::NavigationDrawerViewModel)
 }
 
 expect fun platformModule(): Module

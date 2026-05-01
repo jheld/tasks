@@ -330,4 +330,9 @@
     <string name="cloud_onboarding_faq_google_access_answer">No. Google is used for authentication, but your data is stored on Tasks.org's servers.</string>
     <string name="cloud_onboarding_faq_desktop_sync_question">How do I sync with my computer?</string>
     <string name="cloud_onboarding_faq_desktop_sync_answer">Download the desktop app at tasks.org/download, then sign in with the same Google account.</string>
+    <string name="customize_drawer">Customize drawer</string>
+    <string name="customize_drawer_summary">Configure which items appear in the navigation drawer</string>
+    <string name="enabled">Enabled</string>
+    <string name="hide_unused_tags">Hide unused tags</string>
+    <string name="hide_unused_places">Hide unused places</string>
 </resources>

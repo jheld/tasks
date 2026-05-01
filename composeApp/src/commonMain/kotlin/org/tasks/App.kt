@@ -90,6 +90,8 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import co.touchlab.kermit.Logger
 import org.tasks.compose.settings.DateAndTimeScreen
+import org.tasks.compose.settings.NavigationDrawerScreen
+import org.tasks.compose.settings.NavigationDrawerViewModel
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
@@ -2277,6 +2279,26 @@ private fun SettingsScreen(
                             onDismissAutoDismissInfo = { viewModel.dismissAutoDismissInfo() },
                         )
                     }
+                    is org.tasks.compose.settings.SettingsDestination.NavigationDrawer -> {
+                        val viewModel = koinViewModel<NavigationDrawerViewModel>()
+                        NavigationDrawerScreen(
+                            filtersEnabled = viewModel.filtersEnabled,
+                            showToday = viewModel.showToday,
+                            showRecentlyModified = viewModel.showRecentlyModified,
+                            tagsEnabled = viewModel.tagsEnabled,
+                            hideUnusedTags = viewModel.hideUnusedTags,
+                            placesEnabled = viewModel.placesEnabled,
+                            hideUnusedPlaces = viewModel.hideUnusedPlaces,
+                            onCustomizeDrawer = { /* TODO: Navigate to customize drawer */ },
+                            onFiltersEnabled = { viewModel.updateFiltersEnabled(it) },
+                            onShowToday = { viewModel.updateShowToday(it) },
+                            onShowRecentlyModified = { viewModel.updateShowRecentlyModified(it) },
+                            onTagsEnabled = { viewModel.updateTagsEnabled(it) },
+                            onHideUnusedTags = { viewModel.updateHideUnusedTags(it) },
+                            onPlacesEnabled = { viewModel.updatePlacesEnabled(it) },
+                            onHideUnusedPlaces = { viewModel.updateHideUnusedPlaces(it) },
+                        )
+                    }
                     is org.tasks.compose.settings.SettingsDestination -> {
                         Scaffold(
                             topBar = {
@@ -2297,7 +2319,7 @@ private fun SettingsScreen(
                                         }
                                     },
                                 )
-                            },                     
+                            },
                         ) { padding ->
                             Box(
                                 modifier = Modifier
