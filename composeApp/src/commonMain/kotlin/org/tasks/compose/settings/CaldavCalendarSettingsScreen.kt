@@ -21,19 +21,62 @@ import tasks.kmp.generated.resources.settings
 @Composable
 fun CaldavCalendarSettingsScreen(
     accountName: String,
+    accountId: String? = null,
     calendarName: String?,
+    isNew: Boolean = calendarName == null,
     onBack: () -> Unit,
     onSave: (String) -> Unit,
 ) {
     var name by remember { mutableStateOf(calendarName ?: "") }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
+    if (showDiscardDialog) {
+        BasicAlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        text = "Discard changes?",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Text(
+                        text = "You have unsaved changes. Are you sure you want to discard them?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showDiscardDialog = false }) {
+                            Text("Cancel")
+                        }
+                        TextButton(onClick = {
+                            showDiscardDialog = false
+                            onBack()
+                        }) {
+                            Text("Discard")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (name != calendarName) {
+                        if (!isNew && name != calendarName) {
                             showDiscardDialog = true
                         } else {
                             onBack()
@@ -45,7 +88,7 @@ fun CaldavCalendarSettingsScreen(
                         )
                     }
                 },
-                title = { Text(stringResource(Res.string.settings)) },
+                title = { Text(if (isNew) "New List" else stringResource(Res.string.settings)) },
                 actions = {
                     TextButton(onClick = { onSave(name) }) {
                         Text("Save")
@@ -86,27 +129,6 @@ fun CaldavCalendarSettingsScreen(
             )
 
             HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
-        }
-
-        if (showDiscardDialog) {
-            AlertDialog(
-                onDismissRequest = { showDiscardDialog = false },
-                title = { Text("Discard changes?") },
-                text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showDiscardDialog = false
-                        onBack()
-                    }) {
-                        Text("Discard")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDiscardDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
     }
 }

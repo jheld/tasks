@@ -260,6 +260,7 @@ data object CustomizeDrawerDestination : NavKey
 @Serializable
 data class CaldavCalendarSettingsDestination(
     val account: String,
+    val accountId: String? = null,
     val calendar: String? = null,
 ) : NavKey
 
@@ -757,7 +758,13 @@ fun App(
                                         backStack.add(PlaceSettingsDestination())
                                     }
                                     org.tasks.filters.FilterProvider.REQUEST_NEW_LIST -> {
-                                        // TODO: Navigate to new list creation
+                                        backStack.add(
+                                            CaldavCalendarSettingsDestination(
+                                                account = subheader.title ?: "",
+                                                accountId = subheader.id,
+                                                calendar = null,
+                                            )
+                                        )
                                     }
                                 }
                             },
@@ -802,6 +809,7 @@ fun App(
                     entry<CaldavCalendarSettingsDestination> { destination ->
                         CaldavCalendarSettingsScreen(
                             accountName = destination.account,
+                            accountId = destination.accountId,
                             calendarName = destination.calendar,
                             onBack = { backStack.removeLastOrNull() },
                             onSave = { name: String -> /* TODO: Save calendar name */ },
