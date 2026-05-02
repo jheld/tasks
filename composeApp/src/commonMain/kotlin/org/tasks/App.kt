@@ -163,6 +163,10 @@ import org.tasks.compose.sort.SortSheetContent
 import org.tasks.compose.sort.completedOptions
 import org.tasks.compose.sort.groupOptions
 import org.tasks.compose.sort.subtaskOptions
+import org.tasks.compose.settings.CaldavCalendarSettingsScreen
+import org.tasks.compose.settings.TagSettingsScreen
+import org.tasks.compose.settings.FilterSettingsScreen
+import org.tasks.compose.settings.PlaceSettingsScreen
 import org.tasks.data.TaskContainer
 import org.tasks.data.UUIDHelper
 import org.tasks.data.dao.CaldavDao
@@ -252,6 +256,27 @@ data object NavigationDrawerDestination : NavKey
 
 @Serializable
 data object CustomizeDrawerDestination : NavKey
+
+@Serializable
+data class CaldavCalendarSettingsDestination(
+    val account: String,
+    val calendar: String? = null,
+) : NavKey
+
+@Serializable
+data class TagSettingsDestination(
+    val tagId: Long? = null,
+) : NavKey
+
+@Serializable
+data class FilterSettingsDestination(
+    val filterId: Long? = null,
+) : NavKey
+
+@Serializable
+data class PlaceSettingsDestination(
+    val placeId: Long? = null,
+) : NavKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -715,14 +740,79 @@ fun App(
                     entry<CustomizeDrawerDestination> {
                         val viewModel = koinViewModel<NavigationDrawerCustomizationViewModel>()
                         val items by viewModel.items.collectAsState(emptyList())
+                        val collapsedSections by viewModel.collapsedSections.collectAsState(emptySet())
                         NavigationDrawerCustomization(
                             items = items,
+                            collapsedSections = collapsedSections,
+                            onToggleCollapse = { viewModel.toggleSectionCollapse(it) },
                             onBack = { backStack.removeLastOrNull() },
                             onReorder = { from, to -> viewModel.swapItems(from, to) },
                             onItemClick = { item ->
-                                // TODO: navigate to item settings based on type
+                                when (item) {
+                                    is org.tasks.filters.CaldavFilter -> {
+                                        backStack.add(
+                                            CaldavCalendarSettingsDestination(
+                                                account = item.account.name ?: "",
+                                                calendar = item.calendar.id.toString(),
+                                            )
+                                        )
+                                    }
+                                    is org.tasks.filters.TagFilter -> {
+                                        backStack.add(
+                                            TagSettingsDestination(
+                                                tagId = item.tagData.id,
+                                            )
+                                        )
+                                    }
+                                    is org.tasks.filters.CustomFilter -> {
+                                        backStack.add(
+                                            FilterSettingsDestination(
+                                                filterId = item.id,
+                                            )
+                                        )
+                                    }
+                                    is org.tasks.filters.PlaceFilter -> {
+                                        backStack.add(
+                                            PlaceSettingsDestination(
+                                                placeId = item.place.id,
+                                            )
+                                        )
+                                    }
+                                }
                             },
                             onReset = { viewModel.resetOrders() },
+                        )
+                    }
+                    entry<CaldavCalendarSettingsDestination> { destination ->
+                        CaldavCalendarSettingsScreen(
+                            accountName = destination.account,
+                            calendarName = destination.calendar,
+                            onBack = { backStack.removeLastOrNull() },
+                            onSave = { name: String -> /* TODO: Save calendar name */ },
+                        )
+                    }
+                    entry<TagSettingsDestination> { destination ->
+                        TagSettingsScreen(
+                            tagName = destination.tagId?.toString(),
+                            onBack = { backStack.removeLastOrNull() },
+                            onSave = { name: String -> /* TODO: Save tag name */ },
+                        )
+                    }
+                    entry<FilterSettingsDestination> { destination ->
+                        FilterSettingsScreen(
+                            filterName = destination.filterId?.toString(),
+                            filterSql = null,
+                            onBack = { backStack.removeLastOrNull() },
+                            onSave = { name: String, sql: String? -> /* TODO: Save filter */ },
+                        )
+                    }
+                    entry<PlaceSettingsDestination> { destination ->
+                        PlaceSettingsScreen(
+                            placeName = destination.placeId?.toString(),
+                            placeLatitude = null,
+                            placeLongitude = null,
+                            onBack = { backStack.removeLastOrNull() },
+                            onSave = { name: String, lat: Double?, lng: Double? -> /* TODO: Save place */ },
                         )
                     }
                 },

@@ -12,6 +12,7 @@ import org.tasks.data.dao.LocationDao
 import org.tasks.data.dao.TagDataDao
 import org.tasks.filters.FilterListItem
 import org.tasks.filters.FilterProvider
+import org.tasks.filters.NavigationDrawerSubheader
 
 class NavigationDrawerCustomizationViewModel(
     private val filterProvider: FilterProvider,
@@ -24,8 +25,22 @@ class NavigationDrawerCustomizationViewModel(
     private val _items = MutableStateFlow<List<FilterListItem>>(emptyList())
     val items: StateFlow<List<FilterListItem>> = _items.asStateFlow()
 
+    private val _collapsedSections = MutableStateFlow<Set<String>>(emptySet())
+    val collapsedSections: StateFlow<Set<String>> = _collapsedSections.asStateFlow()
+
     init {
         loadItems()
+    }
+
+    fun toggleSectionCollapse(title: String?) {
+        if (title == null) return
+        val current = _collapsedSections.value.toMutableSet()
+        if (current.contains(title)) {
+            current.remove(title)
+        } else {
+            current.add(title)
+        }
+        _collapsedSections.value = current
     }
 
     fun loadItems() {

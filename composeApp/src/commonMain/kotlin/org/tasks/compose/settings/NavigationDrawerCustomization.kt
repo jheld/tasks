@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import org.jetbrains.compose.resources.stringResource
 import org.tasks.filters.CaldavFilter
 import org.tasks.filters.CustomFilter
@@ -42,6 +47,8 @@ import tasks.kmp.generated.resources.customize_drawer
 @Composable
 fun NavigationDrawerCustomization(
     items: List<FilterListItem>,
+    collapsedSections: Set<String>,
+    onToggleCollapse: (String?) -> Unit,
     onBack: () -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
     onItemClick: (FilterListItem) -> Unit,
@@ -73,31 +80,76 @@ fun NavigationDrawerCustomization(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
         ) {
-            itemsIndexed(
-                items = items,
-                key = { _, item ->
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                itemsIndexed(
+                    items = items,
+                    key = { _, item ->
+                        when (item) {
+                            is CaldavFilter -> "caldav_${item.calendar.id}"
+                            is TagFilter -> "tag_${item.tagData.id}"
+                            is CustomFilter -> "filter_${item.id}"
+                            is PlaceFilter -> "place_${item.place.id}"
+                            is NavigationDrawerSubheader -> "subheader_${item.title}"
+                            else -> "item_$item"
+                        }
+                    }
+                ) { index, item ->
                     when (item) {
-                        is CaldavFilter -> "caldav_${item.calendar.id}"
-                        is TagFilter -> "tag_${item.tagData.id}"
-                        is CustomFilter -> "filter_${item.id}"
-                        is PlaceFilter -> "place_${item.place.id}"
-                        is NavigationDrawerSubheader -> "subheader_${item.title}"
-                        else -> "item_$item"
+                        is NavigationDrawerSubheader -> {
+                            SectionHeader(
+                                title = item.title ?: "",
+                                isCollapsed = collapsedSections.contains(item.title ?: ""),
+                                onToggleCollapse = { onToggleCollapse(item.title) },
+                            )
+                        }
+                        else -> {
+                            val sectionTitle = (items.getOrNull(index - 1) as? NavigationDrawerSubheader)?.title
+                            if (sectionTitle == null || !collapsedSections.contains(sectionTitle)) {
+                                NavigationDrawerCustomizationRow(
+                                    item = item,
+                                    onClick = { onItemClick(item) },
+                                )
+                            }
+                        }
                     }
                 }
-            ) { index, item ->
-                NavigationDrawerCustomizationRow(
-                    item = item,
-                    onClick = { onItemClick(item) },
-                )
             }
         }
+    }
+}
+
+@Composable
+fun SectionHeader(
+    title: String,
+    isCollapsed: Boolean,
+    onToggleCollapse: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggleCollapse() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            imageVector = if (isCollapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+            contentDescription = if (isCollapsed) "Expand" else "Collapse",
+            tint = MaterialTheme.colorScheme.primary,
+        )
     }
 }
 
