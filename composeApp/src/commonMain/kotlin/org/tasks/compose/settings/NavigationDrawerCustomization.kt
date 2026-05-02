@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -49,6 +50,7 @@ fun NavigationDrawerCustomization(
     items: List<FilterListItem>,
     collapsedSections: Set<String>,
     onToggleCollapse: (String?) -> Unit,
+    onCreateNew: (NavigationDrawerSubheader) -> Unit = {},
     onBack: () -> Unit,
     onReorder: (fromIndex: Int, toIndex: Int) -> Unit,
     onItemClick: (FilterListItem) -> Unit,
@@ -107,6 +109,9 @@ fun NavigationDrawerCustomization(
                             SectionHeader(
                                 title = item.title ?: "",
                                 isCollapsed = collapsedSections.contains(item.title ?: ""),
+                                onCreateClick = if (item.addIntentRc != 0) {
+                                    { onCreateNew(item) }
+                                } else null,
                                 onToggleCollapse = { onToggleCollapse(item.title) },
                             )
                         }
@@ -130,6 +135,7 @@ fun NavigationDrawerCustomization(
 fun SectionHeader(
     title: String,
     isCollapsed: Boolean,
+    onCreateClick: (() -> Unit)? = null,
     onToggleCollapse: () -> Unit,
 ) {
     Row(
@@ -145,6 +151,18 @@ fun SectionHeader(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f)
         )
+        if (onCreateClick != null) {
+            IconButton(
+                onClick = { onCreateClick() },
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add new item",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
         Icon(
             imageVector = if (isCollapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
             contentDescription = if (isCollapsed) "Expand" else "Collapse",

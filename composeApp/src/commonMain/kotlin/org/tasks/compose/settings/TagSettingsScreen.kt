@@ -21,7 +21,7 @@ import tasks.kmp.generated.resources.settings
 @Composable
 fun TagSettingsScreen(
     tagName: String?,
-    isNew: Boolean = false,
+    isNew: Boolean = tagName == null,
     onBack: () -> Unit,
     onSave: (String) -> Unit,
 ) {

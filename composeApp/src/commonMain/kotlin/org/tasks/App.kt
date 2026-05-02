@@ -745,6 +745,22 @@ fun App(
                             items = items,
                             collapsedSections = collapsedSections,
                             onToggleCollapse = { viewModel.toggleSectionCollapse(it) },
+                            onCreateNew = { subheader ->
+                                when (subheader.addIntentRc) {
+                                    org.tasks.filters.FilterProvider.REQUEST_NEW_FILTER -> {
+                                        backStack.add(FilterSettingsDestination())
+                                    }
+                                    org.tasks.filters.FilterProvider.REQUEST_NEW_TAGS -> {
+                                        backStack.add(TagSettingsDestination())
+                                    }
+                                    org.tasks.filters.FilterProvider.REQUEST_NEW_PLACE -> {
+                                        backStack.add(PlaceSettingsDestination())
+                                    }
+                                    org.tasks.filters.FilterProvider.REQUEST_NEW_LIST -> {
+                                        // TODO: Navigate to new list creation
+                                    }
+                                }
+                            },
                             onBack = { backStack.removeLastOrNull() },
                             onReorder = { from, to -> viewModel.swapItems(from, to) },
                             onItemClick = { item ->

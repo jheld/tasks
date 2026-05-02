@@ -23,7 +23,7 @@ fun PlaceSettingsScreen(
     placeName: String?,
     placeLatitude: Double?,
     placeLongitude: Double?,
-    isNew: Boolean = false,
+    isNew: Boolean = placeName == null,
     onBack: () -> Unit,
     onSave: (String, Double?, Double?) -> Unit,
 ) {

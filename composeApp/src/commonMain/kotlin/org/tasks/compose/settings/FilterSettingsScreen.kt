@@ -22,13 +22,54 @@ import tasks.kmp.generated.resources.settings
 fun FilterSettingsScreen(
     filterName: String?,
     filterSql: String?,
-    isNew: Boolean = false,
+    isNew: Boolean = filterName == null,
     onBack: () -> Unit,
-    onSave: (String, String) -> Unit,
+    onSave: (String, String?) -> Unit,
 ) {
     var name by remember { mutableStateOf(filterName ?: "") }
     var sql by remember { mutableStateOf(filterSql ?: "") }
     var showDiscardDialog by remember { mutableStateOf(false) }
+
+    if (showDiscardDialog) {
+        BasicAlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+        ) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        text = "Discard changes?",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Text(
+                        text = "You have unsaved changes. Are you sure you want to discard them?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showDiscardDialog = false }) {
+                            Text("Cancel")
+                        }
+                        TextButton(onClick = {
+                            showDiscardDialog = false
+                            onBack()
+                        }) {
+                            Text("Discard")
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -117,27 +158,6 @@ fun FilterSettingsScreen(
                     Text("Delete Filter")
                 }
             }
-        }
-
-        if (showDiscardDialog) {
-            AlertDialog(
-                onDismissRequest = { showDiscardDialog = false },
-                title = { Text("Discard changes?") },
-                text = { Text("You have unsaved changes. Are you sure you want to discard them?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showDiscardDialog = false
-                        onBack()
-                    }) {
-                        Text("Discard")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDiscardDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
         }
     }
 }
