@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import org.tasks.compose.pickers.Icon
+import org.tasks.compose.pickers.IconPickerDialog
+import org.tasks.compose.pickers.IconPickerViewModel
 import org.tasks.compose.settings.ColorPickerDialog
 import org.tasks.compose.settings.PickerColor
 import org.tasks.data.dao.TagDataDao
@@ -24,6 +27,7 @@ import org.tasks.data.entity.TagData
 import org.tasks.kmp.org.tasks.themes.ColorProvider
 import org.tasks.kmp.org.tasks.themes.ThemeColor
 import org.tasks.themes.TasksIcons
+import org.tasks.compose.components.TasksIcon
 import tasks.kmp.generated.resources.Res
 import tasks.kmp.generated.resources.back
 import tasks.kmp.generated.resources.settings
@@ -37,12 +41,15 @@ fun TagSettingsScreen(
 ) {
     val tagDataDao = koinInject<TagDataDao>()
     val scope = rememberCoroutineScope()
+    val iconPickerViewModel = remember { IconPickerViewModel() }
 
     var name by remember { mutableStateOf("") }
     var color by remember { mutableStateOf(0) }
     var icon by remember { mutableStateOf(TasksIcons.LABEL) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showColorPicker by remember { mutableStateOf(false) }
+    var showIconPicker by remember { mutableStateOf(false) }
+    var saveCompleted by remember { mutableStateOf(false) }
     var originalName by remember { mutableStateOf("") }
     var originalColor by remember { mutableStateOf(0) }
     var originalIcon by remember { mutableStateOf(TasksIcons.LABEL) }
@@ -75,6 +82,13 @@ fun TagSettingsScreen(
     }
 
     val hasChanges = name != originalName || color != originalColor || icon != originalIcon
+
+    LaunchedEffect(saveCompleted) {
+        if (saveCompleted) {
+            saveCompleted = false
+            onBack()
+        }
+    }
 
     if (showDiscardDialog) {
         BasicAlertDialog(
@@ -129,6 +143,19 @@ fun TagSettingsScreen(
         )
     }
 
+    if (showIconPicker) {
+        IconPickerDialog(
+            viewModel = iconPickerViewModel,
+            onDismiss = { showIconPicker = false },
+            onIconSelected = { selectedIcon ->
+                icon = selectedIcon.name
+                showIconPicker = false
+            },
+            hasPro = true, // For now, assume pro
+            subscribe = { /* TODO: Handle subscription */ },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -150,25 +177,30 @@ fun TagSettingsScreen(
                 actions = {
                     TextButton(onClick = {
                         scope.launch {
-                            if (tagId == null) {
-                                val newTag = TagData(
-                                    name = name,
-                                    color = color,
-                                    icon = icon,
-                                )
-                                tagDataDao.insert(newTag)
-                            } else {
-                                val id = tagId.toLongOrNull() ?: return@launch
-                                val tags = tagDataDao.getAll()
-                                val tag = tags.find { it.id == id } ?: return@launch
-                                val updated = tag.copy(
-                                    name = name,
-                                    color = color,
-                                    icon = icon,
-                                )
-                                tagDataDao.update(updated)
+                            try {
+                                if (tagId == null) {
+                                    val newTag = TagData(
+                                        name = name,
+                                        color = color,
+                                        icon = icon,
+                                    )
+                                    tagDataDao.insert(newTag)
+                                } else {
+                                    val id = tagId.toLongOrNull() ?: return@launch
+                                    val tags = tagDataDao.getAll()
+                                    val tag = tags.find { it.id == id } ?: return@launch
+                                    val updated = tag.copy(
+                                        name = name,
+                                        color = color,
+                                        icon = icon,
+                                    )
+                                    tagDataDao.update(updated)
+                                }
+                                onSave(name)
+                                saveCompleted = true
+                            } catch (e: Exception) {
+                                e.printStackTrace()
                             }
-                            onSave(name)
                         }
                     }) {
                         Text("Save")
@@ -226,15 +258,21 @@ fun TagSettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Icon display (simplified - could add icon picker later)
+            // Icon Picker Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .clickable { showIconPicker = true }
+                    .padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                TasksIcon(
+                    label = icon,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
                 Text(
-                    text = "Icon: $icon",
+                    text = "Icon",
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }

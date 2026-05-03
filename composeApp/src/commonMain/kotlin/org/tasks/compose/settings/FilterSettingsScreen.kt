@@ -2,6 +2,8 @@ package org.tasks.compose.settings
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -12,7 +14,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
+import org.tasks.compose.pickers.Icon
+import org.tasks.compose.pickers.IconPickerDialog
+import org.tasks.compose.pickers.IconPickerViewModel
+import org.tasks.compose.settings.ColorPickerDialog
+import org.tasks.compose.settings.PickerColor
+import org.tasks.data.dao.FilterDao
+import org.tasks.data.entity.Filter
+import org.tasks.kmp.org.tasks.themes.ColorProvider
+import org.tasks.themes.TasksIcons
+import org.tasks.compose.components.TasksIcon
 import tasks.kmp.generated.resources.Res
 import tasks.kmp.generated.resources.back
 import tasks.kmp.generated.resources.settings
@@ -20,15 +34,66 @@ import tasks.kmp.generated.resources.settings
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterSettingsScreen(
-    filterName: String?,
-    filterSql: String?,
-    isNew: Boolean = filterName == null,
+    filterId: String?,
     onBack: () -> Unit,
     onSave: (String, String?) -> Unit,
 ) {
-    var name by remember { mutableStateOf(filterName ?: "") }
-    var sql by remember { mutableStateOf(filterSql ?: "") }
+    val filterDao = koinInject<FilterDao>()
+    val scope = rememberCoroutineScope()
+    val iconPickerViewModel = remember { IconPickerViewModel() }
+
+    var name by remember { mutableStateOf("") }
+    var sql by remember { mutableStateOf("") }
+    var color by remember { mutableStateOf(0) }
+    var icon by remember { mutableStateOf(TasksIcons.FILTER_LIST) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showIconPicker by remember { mutableStateOf(false) }
+    var saveCompleted by remember { mutableStateOf(false) }
+    var originalName by remember { mutableStateOf("") }
+    var originalSql by remember { mutableStateOf("") }
+    var originalColor by remember { mutableStateOf(0) }
+    var originalIcon by remember { mutableStateOf(TasksIcons.FILTER_LIST) }
+
+    // Convert ThemeColor to PickerColor
+    val pickerColors = remember {
+        ColorProvider.PRESET_COLORS.map { colorValue ->
+            PickerColor(
+                originalColor = colorValue,
+                primaryColor = colorValue,
+                colorOnPrimary = if (colorValue == 0) 0xFF000000.toInt() else 0xFFFFFFFF.toInt(),
+                isFree = true,
+            )
+        }
+    }
+
+    // Load existing filter
+    LaunchedEffect(filterId) {
+        if (filterId != null) {
+            val id = filterId.toLongOrNull() ?: return@LaunchedEffect
+            val filter = filterDao.getById(id)
+            name = filter?.title ?: ""
+            sql = filter?.sql ?: ""
+            color = filter?.color ?: 0
+            icon = filter?.icon ?: TasksIcons.FILTER_LIST
+            originalName = name
+            originalSql = sql
+            originalColor = color
+            originalIcon = icon
+        }
+    }
+
+    val hasChanges = name != originalName ||
+            sql != originalSql ||
+            color != originalColor ||
+            icon != originalIcon
+
+    LaunchedEffect(saveCompleted) {
+        if (saveCompleted) {
+            saveCompleted = false
+            onBack()
+        }
+    }
 
     if (showDiscardDialog) {
         BasicAlertDialog(
@@ -71,12 +136,37 @@ fun FilterSettingsScreen(
         }
     }
 
+    if (showColorPicker) {
+        ColorPickerDialog(
+            hasPro = true,
+            colors = pickerColors,
+            onDismiss = { showColorPicker = false },
+            onColorSelected = { pickerColor ->
+                color = pickerColor.originalColor
+                showColorPicker = false
+            },
+        )
+    }
+
+    if (showIconPicker) {
+        IconPickerDialog(
+            viewModel = iconPickerViewModel,
+            onDismiss = { showIconPicker = false },
+            onIconSelected = { selectedIcon ->
+                icon = selectedIcon.name
+                showIconPicker = false
+            },
+            hasPro = true,
+            subscribe = { /* TODO: Handle subscription */ },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (!isNew && (name != filterName || sql != filterSql)) {
+                        if (filterId != null && hasChanges) {
                             showDiscardDialog = true
                         } else {
                             onBack()
@@ -88,9 +178,37 @@ fun FilterSettingsScreen(
                         )
                     }
                 },
-                title = { Text(if (isNew) "New Filter" else stringResource(Res.string.settings)) },
+                title = { Text(if (filterId == null) "New Filter" else stringResource(Res.string.settings)) },
                 actions = {
-                    TextButton(onClick = { onSave(name, sql) }) {
+                    TextButton(onClick = {
+                        scope.launch {
+                            if (filterId == null) {
+                                val newFilter = Filter(
+                                    title = name,
+                                    sql = sql,
+                                    color = color,
+                                    icon = icon,
+                                )
+                                filterDao.insert(newFilter)
+                            } else {
+                                val id = filterId.toLongOrNull() ?: return@launch
+                                val filter = filterDao.getById(id) ?: return@launch
+                                val updated = Filter(
+                                    id = filter.id,
+                                    title = name,
+                                    sql = sql,
+                                    values = filter.values,
+                                    criterion = filter.criterion,
+                                    color = color,
+                                    icon = icon,
+                                    order = filter.order,
+                                )
+                                filterDao.update(updated)
+                            }
+                            onSave(name, sql)
+                            saveCompleted = true
+                        }
+                    }) {
                         Text("Save")
                     }
                 }
@@ -124,6 +242,49 @@ fun FilterSettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
 
+            // Color Picker Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showColorPicker = true }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    modifier = Modifier.size(32.dp),
+                    color = if (color == 0) MaterialTheme.colorScheme.primary else Color(color),
+                    shape = CircleShape,
+                ) {}
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Color",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Icon Picker Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showIconPicker = true }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TasksIcon(
+                    label = icon,
+                    modifier = Modifier.size(32.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Icon",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
             Text(
                 text = "SQL Query",
                 style = MaterialTheme.typography.labelMedium,
@@ -144,9 +305,7 @@ fun FilterSettingsScreen(
                     .padding(vertical = 8.dp)
             )
 
-            HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
-
-            if (!isNew) {
+            if (filterId != null) {
                 Spacer(modifier = Modifier.weight(1f))
                 Button(
                     onClick = { /* TODO: Delete filter */ },

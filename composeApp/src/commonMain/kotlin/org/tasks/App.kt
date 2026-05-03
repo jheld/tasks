@@ -825,24 +825,27 @@ fun App(
                         TagSettingsScreen(
                             tagId = destination.tagId?.toString(),
                             onBack = { backStack.removeLastOrNull() },
-                            onSave = { name: String -> /* TODO: Save tag name */ },
+                            onSave = { name: String ->
+                                // Tag is already saved in TagSettingsScreen
+                            },
                         )
                     }
                     entry<FilterSettingsDestination> { destination ->
                         FilterSettingsScreen(
-                            filterName = destination.filterId?.toString(),
-                            filterSql = null,
+                            filterId = destination.filterId?.toString(),
                             onBack = { backStack.removeLastOrNull() },
-                            onSave = { name: String, sql: String? -> /* TODO: Save filter */ },
+                            onSave = { name: String, sql: String? ->
+                                // Filter is already saved in FilterSettingsScreen
+                            },
                         )
                     }
                     entry<PlaceSettingsDestination> { destination ->
                         PlaceSettingsScreen(
-                            placeName = destination.placeId?.toString(),
-                            placeLatitude = null,
-                            placeLongitude = null,
+                            placeId = destination.placeId?.toString(),
                             onBack = { backStack.removeLastOrNull() },
-                            onSave = { name: String, lat: Double?, lng: Double? -> /* TODO: Save place */ },
+                            onSave = { name: String, lat: Double?, lng: Double? ->
+                                // Place is already saved in PlaceSettingsScreen
+                            },
                         )
                     }
                 },
