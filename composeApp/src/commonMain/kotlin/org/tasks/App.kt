@@ -252,6 +252,8 @@ data class PricingDestination(
     val mode: PricingMode = PricingMode.BOTH,
     val source: String = AnalyticsEvents.SOURCE_SETTINGS,
 ) : NavKey
+
+@Serializable
 data object NavigationDrawerDestination : NavKey
 
 @Serializable
@@ -327,9 +329,13 @@ fun App(
                             subclass(LinkDesktopDestination::class, LinkDesktopDestination.serializer())
                             subclass(DesktopProDestination::class, DesktopProDestination.serializer())
                             subclass(PricingDestination::class, PricingDestination.serializer())
-                            subclass(NavigationDrawerDestination::class, NavigationDrawerDestination.serializer())
-                            subclass(CustomizeDrawerDestination::class, CustomizeDrawerDestination.serializer())
-                        }
+                             subclass(NavigationDrawerDestination::class, NavigationDrawerDestination.serializer())
+                             subclass(CustomizeDrawerDestination::class, CustomizeDrawerDestination.serializer())
+                             subclass(CaldavCalendarSettingsDestination::class, CaldavCalendarSettingsDestination.serializer())
+                             subclass(TagSettingsDestination::class, TagSettingsDestination.serializer())
+                             subclass(FilterSettingsDestination::class, FilterSettingsDestination.serializer())
+                             subclass(PlaceSettingsDestination::class, PlaceSettingsDestination.serializer())
+                         }
                     }
                 },
                 if (hasAccount == true) TaskListDestination else WelcomeDestination,
@@ -817,7 +823,7 @@ fun App(
                     }
                     entry<TagSettingsDestination> { destination ->
                         TagSettingsScreen(
-                            tagName = destination.tagId?.toString(),
+                            tagId = destination.tagId?.toString(),
                             onBack = { backStack.removeLastOrNull() },
                             onSave = { name: String -> /* TODO: Save tag name */ },
                         )
@@ -843,7 +849,8 @@ fun App(
             )
         }
     }
-    } // CompositionLocalProvider
+} // CompositionLocalProvider
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
