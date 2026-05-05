@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.rememberCoroutineScope
+import org.tasks.jobs.BackgroundWork
+import org.tasks.sync.SyncSource
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -465,9 +468,11 @@ fun App(
                         LaunchedEffect(Unit) {
                             taskListViewModel.setFilter(MyTasksFilter.create())
                         }
+                        val state by taskListViewModel.state.collectAsState()
                         TaskListScreen(
                             viewModel = taskListViewModel,
                             drawerViewModel = drawerViewModel,
+                            syncOngoing = state.syncOngoing,
                             onSettingsClick = { backStack.add(SettingsDestination) },
                             onSubscribe = { backStack.add(PricingDestination()) },
                             onAddAccount = { backStack.add(AddAccountDestination) },
@@ -917,6 +922,7 @@ private fun SignInErrorDialog(
 private fun TaskListScreen(
     viewModel: TaskListViewModel,
     drawerViewModel: DrawerViewModel,
+    syncOngoing: Boolean,
     onSettingsClick: () -> Unit,
     onSubscribe: () -> Unit,
     onAddAccount: () -> Unit,
@@ -1091,6 +1097,7 @@ private fun TaskListScreen(
                         reporting = reporting,
                         viewModel = viewModel,
                         themeColor = themeColor,
+                        syncOngoing = syncOngoing,
                         onShowSortSheet = { showSortSheet = true },
                         onTaskClick = onTaskClick,
                         showMenuButton = true,
@@ -1155,6 +1162,7 @@ private fun TaskListScreen(
                         reporting = reporting,
                         viewModel = viewModel,
                         themeColor = themeColor,
+                        syncOngoing = syncOngoing,
                         onShowSortSheet = { showSortSheet = true },
                         onTaskClick = onTaskClick,
                         showMenuButton = true,
@@ -1272,6 +1280,7 @@ private fun TaskListContent(
     reporting: org.tasks.analytics.Reporting,
     viewModel: TaskListViewModel,
     themeColor: org.tasks.kmp.org.tasks.themes.ThemeColor,
+    syncOngoing: Boolean,
     onShowSortSheet: () -> Unit,
     onTaskClick: (TaskKey) -> Unit,
     showMenuButton: Boolean,
@@ -1299,6 +1308,7 @@ private fun TaskListContent(
                 reporting = reporting,
                 viewModel = viewModel,
                 themeColor = themeColor,
+                syncOngoing = syncOngoing,
                 showMenuButton = showMenuButton,
                 onShowSortSheet = onShowSortSheet,
                 onMenuClick = onMenuClick,
@@ -1354,6 +1364,7 @@ private fun TaskListPane(
     reporting: org.tasks.analytics.Reporting,
     viewModel: TaskListViewModel,
     themeColor: org.tasks.kmp.org.tasks.themes.ThemeColor,
+    syncOngoing: Boolean,
     showMenuButton: Boolean,
     onShowSortSheet: () -> Unit,
     onMenuClick: () -> Unit,
@@ -1472,6 +1483,24 @@ private fun TaskListPane(
                 )
             },
             actions = {
+                val backgroundWork = koinInject<BackgroundWork>()
+                val scope = rememberCoroutineScope()
+                IconButton(onClick = {
+                    scope.launch { backgroundWork.sync(SyncSource.USER_INITIATED) }
+                }) {
+                    if (syncOngoing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        org.tasks.compose.components.TasksIcon(
+                            label = "refresh",
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+                
                 SettingsMenuButton(
                     showListSettings = showListSettings,
                     onSettingsClick = onSettingsClick,
