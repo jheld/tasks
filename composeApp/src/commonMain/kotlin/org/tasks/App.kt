@@ -2034,15 +2034,27 @@ private fun TaskRow(
             onClick = onToggleComplete,
             modifier = Modifier.size(48.dp),
         ) {
-            Icon(
-                imageVector = if (task.isCompleted)
-                    Icons.Filled.CheckCircle
-                else
-                    Icons.Outlined.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = checkColor,
-                modifier = Modifier.size(24.dp),
-            )
+            if (task.isCompleted) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = checkColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            } else if (task.task.isRecurring) {
+                org.tasks.compose.components.TasksIcon(
+                    label = "repeat",
+                    tint = checkColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = checkColor,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
         Column(modifier = Modifier.weight(1f).padding(top = 12.dp, bottom = 12.dp)) {
             val dueDateText by produceState<String?>(null, task.dueDate, groupMode, is24Hour) {
