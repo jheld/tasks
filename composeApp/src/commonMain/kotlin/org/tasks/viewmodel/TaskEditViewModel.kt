@@ -45,9 +45,14 @@ class TaskEditViewModel(
         val list: CaldavFilter? = null,
         val originalList: CaldavFilter? = null,
         val deleted: Boolean = false,
+        val showKeyboard: Boolean = false,
+        val backButtonSavesTask: Boolean = false,
+        val isReadOnly: Boolean = false,
     ) {
         val isNew: Boolean get() = originalTask.isNew
         val hasChanges: Boolean get() = task != originalTask || list != originalList
+        val isCompleted: Boolean get() = task.isCompleted
+        val isRecurring: Boolean get() = task.isRecurring
     }
 
     private val _state = MutableStateFlow(State())
@@ -58,6 +63,9 @@ class TaskEditViewModel(
 
     private val _saveError = MutableStateFlow(false)
     val saveError: StateFlow<Boolean> = _saveError.asStateFlow()
+
+    private val _discardEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val discardEvents: SharedFlow<Unit> = _discardEvents.asSharedFlow()
 
     private val saveMutex = Mutex()
     private var initializeJob: Job? = null
@@ -195,6 +203,24 @@ class TaskEditViewModel(
     fun setList(list: CaldavFilter) {
         _state.update { it.copy(list = list) }
     }
+    fun setPriority(priority: Int) {
+        _state.update { it.copy(task = it.task.copy(priority = priority)) }
+    }
+
+    fun setDueDate(dueDate: Long) {
+        _state.update { it.copy(task = it.task.copy(dueDate = dueDate)) }
+    }
+
+    fun setComplete(completed: Boolean) {
+        _state.update {
+            val task = if (completed) {
+                it.task.copy(completionDate = currentTimeMillis())
+            } else {
+                it.task.copy(completionDate = 0L)
+            }
+            it.copy(task = task)
+        }
+    }
 
     fun save() {
         viewModelScope.launch {
@@ -222,6 +248,36 @@ class TaskEditViewModel(
             if (success) {
                 _closeEvents.emit(Unit)
             }
+        }
+    }
+
+    fun discard() {
+        viewModelScope.launch {
+            withContext(NonCancellable) {
+                saveMutex.withLock {
+                    val snapshot = _state.value
+                    if (snapshot.isNew) {
+                        // New task - just close
+                        _discardEvents.emit(Unit)
+                    } else {
+                        // Reset to original
+                        _state.update { it.copy(task = it.originalTask.copy()) }
+                    }
+                }
+            }
+            _closeEvents.emit(Unit)
+        }
+    }
+
+    fun delete() {
+        viewModelScope.launch {
+            val snapshot = _state.value
+            if (!snapshot.isNew) {
+                // Mark task as deleted
+                val task = snapshot.task.copy(deletionDate = currentTimeMillis())
+                taskSaver.save(task, snapshot.originalTask)
+            }
+            _closeEvents.emit(Unit)
         }
     }
 

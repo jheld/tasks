@@ -12,8 +12,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Clear
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,10 +40,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.stringResource
 import org.tasks.compose.PlatformBackHandler
+import org.tasks.compose.edit.DueDateRow
+import org.tasks.compose.edit.InfoRow
+import org.tasks.compose.edit.ListRow
+import org.tasks.compose.edit.PriorityRow
+import org.tasks.compose.edit.TitleRow
 import org.tasks.compose.edit.DescriptionRow
 import org.tasks.compose.edit.ListPickerDialog
 import org.tasks.compose.edit.ListPickerRow
@@ -75,6 +83,7 @@ fun TaskEditScreen(
     val currentOnClose by rememberUpdatedState(onClose)
     LaunchedEffect(viewModel) {
         viewModel.closeEvents.collect { currentOnClose() }
+        viewModel.discardEvents.collect { currentOnClose() }
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveError by viewModel.saveError.collectAsState()
@@ -86,7 +95,9 @@ fun TaskEditScreen(
         }
     }
 
-    val saveAndClose = { viewModel.save() }
+    val saveAndClose: () -> Unit = { viewModel.save() }
+    val discardAndClose: () -> Unit = { viewModel.discard() }
+    val deleteAndClose: () -> Unit = { viewModel.delete() }
 
     PlatformBackHandler(enabled = !state.isLoading) { saveAndClose() }
 
@@ -102,11 +113,40 @@ fun TaskEditScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = saveAndClose) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.back),
-                        )
+                    if (state.isReadOnly) {
+                        IconButton(onClick = { viewModel.discard() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                            )
+                        }
+                    } else {                        
+                        IconButton(onClick = saveAndClose) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(Res.string.back),
+                            )                            
+                        }
+                    }
+                },
+                actions = {
+                    if (!state.isReadOnly) {
+                        if (!state.isNew) {
+                            IconButton(onClick = deleteAndClose) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Delete",
+                                )
+                            }
+                        }
+                        if (state.backButtonSavesTask) {
+                            IconButton(onClick = discardAndClose) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Clear,
+                                    contentDescription = "Discard",
+                                )
+                            }
+                        }
                     }
                 },
             )
@@ -169,6 +209,29 @@ fun TaskEditScreen(
                             description = state.task.notes.orEmpty(),
                             onDescriptionChange = viewModel::setDescription,
                         )
+
+                        HorizontalDivider()
+                        ListRow(
+                            list = state.list,
+                            onClick = { /* TODO: Open list picker */ },
+                        )
+                        HorizontalDivider()
+                        DueDateRow(
+                            dueDate = state.task.dueDate,
+                            onClick = { /* TODO: Open date picker */ },
+                        )
+                        HorizontalDivider()
+                        PriorityRow(
+                            priority = state.task.priority,
+                            onChangePriority = { viewModel.setPriority(it) },
+                        )
+
+                        HorizontalDivider()
+                        InfoRow(
+                            creationDate = state.task.creationDate,
+                            modificationDate = state.task.modificationDate,
+                            completionDate = state.task.completionDate,
+                        )                        
                     }
                     if (showListPicker) {
                         val pickerState by filterPickerViewModel.viewState.collectAsState()
@@ -234,4 +297,8 @@ private fun TitleField(
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
     )
+    //     isCompleted = state.isCompleted,
+    //     isRecurring = state.isRecurring,
+    //     priority = state.task.priority,
+    //     onComplete = { viewModel.setComplete(!state.isCompleted) },
 }
