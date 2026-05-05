@@ -50,7 +50,7 @@ class EtebaseSynchronizer(
     }
 
     suspend fun sync(account: CaldavAccount, hasPro: Boolean) {
-        Logger.d("EtebaseSynchronizer") { "Synchronizing $account" }
+        Logger.d("EtebaseSynchronizer") { "Synchronizing ${account::class.simpleName} [type=${account.accountType}, url=${account.url}, id=${account.id}, uuid=${account.uuid}, name=${account.name}, username=${account.username}, serverType=${account.serverType}]" }
         if (account.password.isNullOrEmpty()) {
             setError(account, getString(Res.string.password_required))
             return
