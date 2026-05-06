@@ -6,11 +6,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.tasks.compose.edit.TaskEditRow
 import org.tasks.data.entity.Task
 import org.tasks.kmp.org.tasks.time.DateStyle
 import org.tasks.kmp.org.tasks.time.getRelativeDateTime
 import org.tasks.time.DateTimeUtils2.currentTimeMillis
+import kotlinx.coroutines.runBlocking
+import tasks.kmp.generated.resources.Res
+import tasks.kmp.generated.resources.no_due_date
 
 @Composable
 fun DueDateRow(
@@ -21,26 +28,45 @@ fun DueDateRow(
     onClick: () -> Unit,
 ) {
     val overdue = remember(dueDate) {
-        if (dueDate <= 0) false
-        else if (Task.hasDueTime(dueDate)) {
+        if (dueDate <= 0) {
+            false
+        } else if (Task.hasDueTime(dueDate)) {
             dueDate < currentTimeMillis()
         } else {
+            // Date without time - compare against end of day
             dueDate < currentTimeMillis()
         }
     }
-    // For now, just show simple date or "No due date"
-    val displayText = if (dueDate == 0L) {
-        "No due date"
-    } else {
-        // Simple date display - in production this would use getRelativeDateTime
-        "Due: $dueDate"
-    }
-    val color = when {
-        overdue -> MaterialTheme.colorScheme.error
-        dueDate == 0L && hasDueDateAlarm -> MaterialTheme.colorScheme.error
-        dueDate == 0L -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+
+    DueDateRow(
+        dueDate = if (dueDate == 0L) {
+            stringResource(Res.string.no_due_date)
+        } else {
+            runBlocking {
+                getRelativeDateTime(
+                    dueDate,
+                    is24HourFormat,
+                    DateStyle.FULL,
+                    alwaysDisplayFullDate = alwaysDisplayFullDate
+                )
+            }
+        },
+        color = when {
+            overdue -> MaterialTheme.colorScheme.error
+            dueDate == 0L && hasDueDateAlarm -> MaterialTheme.colorScheme.error
+            dueDate == 0L -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+        onClick = { onClick() },
+    )
+}
+
+@Composable
+private fun DueDateRow(
+    dueDate: String,
+    color: Color,
+    onClick: () -> Unit,
+) {
     TaskEditRow(
         icon = {
             Text(
@@ -49,12 +75,23 @@ fun DueDateRow(
             )
         },
         content = {
-            Text(
-                text = displayText,
-                style = MaterialTheme.typography.bodyLarge,
+            DueDate(
+                dueDate = dueDate,
                 color = color,
             )
         },
         onClick = onClick,
+    )
+}
+
+@Composable
+fun DueDate(
+    dueDate: String,
+    color: Color,
+) {
+    Text(
+        text = dueDate,
+        color = color,
+        modifier = Modifier.padding(top = 20.dp, bottom = 20.dp, end = 16.dp)
     )
 }

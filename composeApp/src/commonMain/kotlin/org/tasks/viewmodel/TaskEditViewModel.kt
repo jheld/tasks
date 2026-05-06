@@ -22,11 +22,15 @@ import kotlinx.coroutines.flow.updateAndGet
 import org.tasks.data.TaskCreator
 import org.tasks.data.TaskMover
 import org.tasks.data.TaskSaver
+import org.tasks.data.dao.AlarmDao
 import org.tasks.data.dao.CaldavDao
 import org.tasks.data.dao.TaskDao
+import org.tasks.data.entity.Alarm
 import org.tasks.data.entity.CaldavTask
 import org.tasks.data.entity.Task
 import org.tasks.filters.CaldavFilter
+import org.tasks.preferences.TasksPreferences
+import org.tasks.time.DateTimeUtils2.currentTimeMillis
 
 class TaskEditViewModel(
     private val taskDao: TaskDao,
@@ -34,6 +38,8 @@ class TaskEditViewModel(
     private val caldavDao: CaldavDao,
     private val taskMover: TaskMover,
     private val taskCreator: TaskCreator = TaskCreator(),
+    private val alarmDao: AlarmDao,
+    private val tasksPreferences: TasksPreferences,
 ) : ViewModel() {
 
     private val log = Logger.withTag("TaskEditViewModel")
@@ -48,7 +54,10 @@ class TaskEditViewModel(
         val showKeyboard: Boolean = false,
         val backButtonSavesTask: Boolean = false,
         val isReadOnly: Boolean = false,
+        val alwaysDisplayFullDate: Boolean = false,
+        val alarms: List<Alarm> = emptyList(),
     ) {
+        val hasDueDateAlarm: Boolean get() = alarms.any { it.type == Alarm.TYPE_REL_END }
         val isNew: Boolean get() = originalTask.isNew
         val hasChanges: Boolean get() = task != originalTask || list != originalList
         val isCompleted: Boolean get() = task.isCompleted
@@ -93,12 +102,20 @@ class TaskEditViewModel(
                     firstCaldavList()
                 }
             }
+            // Load alarms for the task
+            val alarms = if (normalized != null) {
+                alarmDao.getAlarms(normalized)
+            } else {
+                emptyList()
+            }
             _state.value = State(
                 isLoading = false,
                 task = loaded,
                 originalTask = loaded.copy(),
                 list = list,
                 originalList = list,
+                alwaysDisplayFullDate = tasksPreferences.get(TasksPreferences.alwaysDisplayFullDate, false),
+                alarms = alarms,
             )
             if (normalized != null) {
                 watchJob = viewModelScope.launch {
@@ -209,6 +226,14 @@ class TaskEditViewModel(
 
     fun setDueDate(dueDate: Long) {
         _state.update { it.copy(task = it.task.copy(dueDate = dueDate)) }
+    }
+
+    fun setRepeatFrom(@Task.RepeatFrom repeatFrom: Int) {
+        _state.update { it.copy(task = it.task.copy(repeatFrom = repeatFrom)) }
+    }
+
+    fun setRecurrence(recurrence: String?) {
+        _state.update { it.copy(task = it.task.copy(recurrence = recurrence)) }
     }
 
     fun setComplete(completed: Boolean) {

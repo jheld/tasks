@@ -146,6 +146,9 @@ class EtebaseSynchronizer(
         }
         Logger.d("EtebaseSynchronizer") { "updating $caldavCalendar" }
         client.fetchItems(collection, caldavCalendar) { (stoken, items) ->
+            if (items.isNotEmpty()) {
+                Logger.d("EtebaseSynchronizer") { "fetched ${items.size} items for ${caldavCalendar.name}" }
+            }
             applyEntries(account, caldavCalendar, items, stoken)
             client.updateCache(collection, items)
         }

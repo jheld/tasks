@@ -365,6 +365,8 @@ val commonModule = module {
             taskSaver = get(),
             caldavDao = get(),
             taskMover = get(),
+            alarmDao = get(),
+            tasksPreferences = get(),
         )
     }
     viewModel {

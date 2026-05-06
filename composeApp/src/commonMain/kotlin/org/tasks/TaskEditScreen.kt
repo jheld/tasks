@@ -31,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,11 +44,14 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.stringResource
 import org.tasks.compose.PlatformBackHandler
+import org.tasks.compose.edit.DatePickerDialog
 import org.tasks.compose.edit.DueDateRow
 import org.tasks.compose.edit.InfoRow
 import org.tasks.compose.edit.ListRow
 import org.tasks.compose.edit.PriorityRow
+import org.tasks.compose.edit.RepeatRow
 import org.tasks.compose.edit.TitleRow
+import org.tasks.time.is24HourFormat
 import org.tasks.compose.edit.DescriptionRow
 import org.tasks.compose.edit.ListPickerDialog
 import org.tasks.compose.edit.ListPickerRow
@@ -98,6 +102,8 @@ fun TaskEditScreen(
     val saveAndClose: () -> Unit = { viewModel.save() }
     val discardAndClose: () -> Unit = { viewModel.discard() }
     val deleteAndClose: () -> Unit = { viewModel.delete() }
+
+    var showDatePicker by remember { mutableStateOf(false) }
 
     PlatformBackHandler(enabled = !state.isLoading) { saveAndClose() }
 
@@ -218,8 +224,19 @@ fun TaskEditScreen(
                         HorizontalDivider()
                         DueDateRow(
                             dueDate = state.task.dueDate,
-                            onClick = { /* TODO: Open date picker */ },
+                            hasDueDateAlarm = state.hasDueDateAlarm,
+                            is24HourFormat = is24HourFormat(),
+                            alwaysDisplayFullDate = state.alwaysDisplayFullDate,
+                            onClick = { showDatePicker = true },
                         )
+                        HorizontalDivider()
+                        RepeatRow(
+                            recurrence = state.task.recurrence,
+                            repeatFrom = state.task.repeatFrom,
+                            onClick = { /* TODO: Open repeat dialog */ },
+                            onRepeatFromChanged = { viewModel.setRepeatFrom(it) },
+                        )
+
                         HorizontalDivider()
                         PriorityRow(
                             priority = state.task.priority,
@@ -231,7 +248,18 @@ fun TaskEditScreen(
                             creationDate = state.task.creationDate,
                             modificationDate = state.task.modificationDate,
                             completionDate = state.task.completionDate,
-                        )                        
+                        )
+
+                        if (showDatePicker) {
+                            DatePickerDialog(
+                                initialDate = state.task.dueDate,
+                                onDateSelected = {
+                                    viewModel.setDueDate(it)
+                                    showDatePicker = false
+                                },
+                                onDismiss = { showDatePicker = false },
+                            )
+                        }
                     }
                     if (showListPicker) {
                         val pickerState by filterPickerViewModel.viewState.collectAsState()

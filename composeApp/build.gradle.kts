@@ -66,6 +66,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.jetbrains.navigation3.ui)
             implementation(libs.jetbrains.lifecycle.viewmodel.navigation3)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.immutable)
             implementation(libs.kotlinx.serialization)
             implementation(libs.kermit)
