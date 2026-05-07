@@ -105,7 +105,7 @@ fun TaskEditScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
 
-    PlatformBackHandler(enabled = !state.isLoading) { saveAndClose() }
+    PlatformBackHandler(enabled = !state.isLoading) { discardAndClose() }
 
     Scaffold(
         snackbarHost = { Toaster(state = snackbarHostState) },
@@ -126,15 +126,20 @@ fun TaskEditScreen(
                                 contentDescription = "Back",
                             )
                         }
-                    } else {                        
+                    } else {
                         IconButton(onClick = saveAndClose) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(Res.string.back),
                             )                            
                         }
-                    }
-                },
+                        IconButton(onClick = discardAndClose) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Discard and close",
+                            )
+                        }
+                    },
                 actions = {
                     if (!state.isReadOnly) {
                         if (!state.isNew) {
@@ -145,13 +150,14 @@ fun TaskEditScreen(
                                 )
                             }
                         }
-                        if (state.backButtonSavesTask) {
-                            IconButton(onClick = discardAndClose) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Clear,
-                                    contentDescription = "Discard",
-                                )
-                            }
+                        IconButton(
+                            onClick = saveAndClose,
+                            enabled = state.hasChanges,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Save,
+                                contentDescription = "Save",
+                            )
                         }
                     }
                 },

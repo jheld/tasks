@@ -282,14 +282,14 @@ class TaskEditViewModel(
                 saveMutex.withLock {
                     val snapshot = _state.value
                     if (snapshot.isNew) {
-                        // New task - just close
+                        // New task - close without saving
                         _discardEvents.emit(Unit)
-                    } else {
-                        // Reset to original
-                        _state.update { it.copy(task = it.originalTask.copy()) }
                     }
+                    // For existing tasks, just close without saving changes
+                    // (changes were already reverted in the UI state)
                 }
             }
+            // Always close the screen
             _closeEvents.emit(Unit)
         }
     }
