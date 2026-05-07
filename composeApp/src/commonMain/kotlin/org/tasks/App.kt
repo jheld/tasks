@@ -35,6 +35,8 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +56,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -1423,6 +1427,17 @@ private fun TaskListPane(
         listState.scrollToItem(0)
     }
 
+    var searchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember(state.filter) { mutableStateOf(state.searchQuery ?: "") }
+
+    // When switching filters (not search), exit search mode
+    LaunchedEffect(state.filter) {
+        if (state.searchQuery == null) {
+            searchActive = false
+            searchQuery = ""
+        }
+    }
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -1475,42 +1490,84 @@ private fun TaskListPane(
                 .graphicsLayer { translationY = topBarOffsetPx },
             windowInsets = WindowInsets(top = statusBarTop),
             title = {
-                Text(
-                    text = state.filter.title.ifEmpty { "Tasks" },
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (searchActive) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { query ->
+                            searchQuery = query
+                            viewModel.setSearchQuery(query)
+                        },
+                        placeholder = { Text("Search") },
+                        singleLine = true,
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    viewModel.setSearchQuery(null)
+                                }) {
+                                    Icon(Icons.Outlined.Close, contentDescription = "Clear")
+                                }
+                            }
+                        },
+                    )
+                } else {
+                    Text(
+                        text = state.filter.title.ifEmpty { "Tasks" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             },
-            actions = {
-                val backgroundWork = koinInject<BackgroundWork>()
-                val scope = rememberCoroutineScope()
-                IconButton(onClick = {
-                    scope.launch { backgroundWork.sync(SyncSource.USER_INITIATED) }
-                }) {
-                    if (syncOngoing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    } else {
-                        org.tasks.compose.components.TasksIcon(
-                            label = "refresh",
-                            modifier = Modifier.size(24.dp),
-                        )
+            navigationIcon = {
+                if (searchActive) {
+                    IconButton(onClick = {
+                        searchActive = false
+                        searchQuery = ""
+                        viewModel.setSearchQuery(null)
+                    }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
-                
-                SettingsMenuButton(
-                    showListSettings = showListSettings,
-                    onSettingsClick = onSettingsClick,
-                    onListSettingsClick = onListSettingsClick,
-                )
+            },
+            actions = {
+                if (!searchActive) {
+                    val backgroundWork = koinInject<BackgroundWork>()
+                    val scope = rememberCoroutineScope()
+                    IconButton(onClick = {
+                                   scope.launch { backgroundWork.sync(SyncSource.USER_INITIATED) }
+                               }) {
+                        if (syncOngoing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            org.tasks.compose.components.TasksIcon(
+                                label = "refresh",
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                    
+                    SettingsMenuButton(
+                        showListSettings = showListSettings,
+                        onSettingsClick = onSettingsClick,
+                        onListSettingsClick = onListSettingsClick,
+                    )
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.background,
                 scrolledContainerColor = MaterialTheme.colorScheme.background,
-                titleContentColor = Color(themeColor.primaryColor),
+                titleContentColor = if (searchActive) MaterialTheme.colorScheme.onSurface else Color(themeColor.primaryColor),
             ),
         )
 
@@ -1519,9 +1576,11 @@ private fun TaskListPane(
         NavigationBarScrim(color = scrimColor, modifier = Modifier.align(Alignment.BottomCenter))
 
         FloatingToolbar(
-            showMenuButton = showMenuButton,
+            showMenuButton = showMenuButton && !searchActive,
             onMenuClick = onMenuClick,
-            onSearchClick = { /* TODO: search */ },
+            onSearchClick = {
+                searchActive = true
+            },
             onSortClick = onShowSortSheet,
             onMoreClick = { /* TODO: more options */ },
             onAddClick = onCreateTask,
