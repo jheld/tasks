@@ -41,9 +41,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.collect
 import org.jetbrains.compose.resources.stringResource
 import org.tasks.compose.PlatformBackHandler
+import org.tasks.compose.edit.BasicRecurrenceDialog
 import org.tasks.compose.edit.DatePickerDialog
 import org.tasks.compose.edit.DueDateRow
 import org.tasks.compose.edit.InfoRow
@@ -104,6 +106,7 @@ fun TaskEditScreen(
     val deleteAndClose: () -> Unit = { viewModel.delete() }
 
     var showDatePicker by remember { mutableStateOf(false) }
+    var showRecurrenceDialog by remember { mutableStateOf(false) }
 
     PlatformBackHandler(enabled = !state.isLoading) { discardAndClose() }
 
@@ -118,196 +121,184 @@ fun TaskEditScreen(
                         style = MaterialTheme.typography.titleLarge,
                     )
                 },
-                navigationIcon = {
-                    if (state.isReadOnly) {
-                        IconButton(onClick = { viewModel.discard() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
-                    } else {
-                        IconButton(onClick = saveAndClose) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(Res.string.back),
-                            )                            
-                        }
-                        IconButton(onClick = discardAndClose) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Discard and close",
-                            )
-                        }
-                    },
                 actions = {
-                    if (!state.isReadOnly) {
-                        if (!state.isNew) {
-                            IconButton(onClick = deleteAndClose) {
+                        if (!state.isReadOnly) {
+                            if (!state.isNew) {
+                                IconButton(onClick = deleteAndClose) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Delete",
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = saveAndClose,
+                                enabled = state.hasChanges,
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Delete,
-                                    contentDescription = "Delete",
+                                    imageVector = Icons.Outlined.Save,
+                                    contentDescription = "Save",
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = saveAndClose,
-                            enabled = state.hasChanges,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Save,
-                                contentDescription = "Save",
-                            )
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            when {
-                state.isLoading -> CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
+                    },
                 )
-                state.list == null -> Text(
-                    text = stringResource(Res.string.no_list_available),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(16.dp),
-                )
-                else -> {
-                    val titleFocusRequester = remember { FocusRequester() }
-                    if (state.isNew) {
-                        LaunchedEffect(Unit) {
-                            titleFocusRequester.requestFocus()
-                        }
-                    }
-                    val list = state.list!!
-                    val isDark = isSystemInDarkTheme()
-                    val onSurface = MaterialTheme.colorScheme.onSurface
-                    val listTint = remember(list, isDark) {
-                        val color = filterPickerViewModel.getColor(list.tint, isDark)
-                        if (color != null) Color(color) else onSurface
-                    }
-                    val listIcon = remember(list) { filterPickerViewModel.getIcon(list) }
-                    var showListPicker by remember { mutableStateOf(false) }
-                    LaunchedEffect(list) { showListPicker = false }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                    ) {
-                        TitleField(
-                            title = state.task.title.orEmpty(),
-                            onTitleChange = viewModel::setTitle,
-                            focusRequester = titleFocusRequester,
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ListPickerRow(
-                            listName = list.title,
-                            icon = listIcon,
-                            tint = listTint,
-                            onClick = { showListPicker = true },
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        DescriptionRow(
-                            description = state.task.notes.orEmpty(),
-                            onDescriptionChange = viewModel::setDescription,
-                        )
-
-                        HorizontalDivider()
-                        ListRow(
-                            list = state.list,
-                            onClick = { /* TODO: Open list picker */ },
-                        )
-                        HorizontalDivider()
-                        DueDateRow(
-                            dueDate = state.task.dueDate,
-                            hasDueDateAlarm = state.hasDueDateAlarm,
-                            is24HourFormat = is24HourFormat(),
-                            alwaysDisplayFullDate = state.alwaysDisplayFullDate,
-                            onClick = { showDatePicker = true },
-                        )
-                        HorizontalDivider()
-                        RepeatRow(
-                            recurrence = state.task.recurrence,
-                            repeatFrom = state.task.repeatFrom,
-                            onClick = { /* TODO: Open repeat dialog */ },
-                            onRepeatFromChanged = { viewModel.setRepeatFrom(it) },
-                        )
-
-                        HorizontalDivider()
-                        PriorityRow(
-                            priority = state.task.priority,
-                            onChangePriority = { viewModel.setPriority(it) },
-                        )
-
-                        HorizontalDivider()
-                        InfoRow(
-                            creationDate = state.task.creationDate,
-                            modificationDate = state.task.modificationDate,
-                            completionDate = state.task.completionDate,
-                        )
-
-                        if (showDatePicker) {
-                            DatePickerDialog(
-                                initialDate = state.task.dueDate,
-                                onDateSelected = {
-                                    viewModel.setDueDate(it)
-                                    showDatePicker = false
-                                },
-                                onDismiss = { showDatePicker = false },
-                            )
-                        }
-                    }
-                    if (showListPicker) {
-                        val pickerState by filterPickerViewModel.viewState.collectAsState()
-                        val searching = pickerState.query.isNotBlank()
-                        val onSurfaceArgb = remember(onSurface) { onSurface.toArgb() }
-                        ListPickerDialog(
-                            filters = if (searching) pickerState.searchResults else pickerState.filters,
-                            query = pickerState.query,
-                            onQueryChange = filterPickerViewModel::onQueryChange,
-                            selected = list,
-                            onClick = { filter ->
-                                when (filter) {
-                                    is NavigationDrawerSubheader ->
-                                        filterPickerViewModel.onClick(filter)
-                                    is CaldavFilter -> {
-                                        viewModel.setList(filter)
-                                        showListPicker = false
-                                        filterPickerViewModel.onQueryChange("")
+            },
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                when {
+                    state.isLoading -> CircularProgressIndicator(
+                                           modifier = Modifier.align(Alignment.Center),
+                                       )
+                                       state.list == null -> Text(
+                                                                 text = stringResource(Res.string.no_list_available),
+                                                                 style = MaterialTheme.typography.bodyMedium,
+                                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                                 modifier = Modifier
+                                                                     .align(Alignment.Center)
+                                                                     .padding(16.dp),
+                                                             )
+                    else -> {
+                                val titleFocusRequester = remember { FocusRequester() }
+                                if (state.isNew) {
+                                    LaunchedEffect(Unit) {
+                                        titleFocusRequester.requestFocus()
                                     }
                                 }
-                            },
-                            getIcon = { filterPickerViewModel.getIcon(it) },
-                            getColor = { filter ->
-                                filterPickerViewModel.getColor(filter.tint, isDark)
-                                    ?: onSurfaceArgb
-                            },
-                            onAddClick = { header ->
-                                header.id.toLongOrNull()?.let { accountId ->
-                                    onCreateList(accountId)
+                                val list = state.list!!
+                                val isDark = isSystemInDarkTheme()
+                                val onSurface = MaterialTheme.colorScheme.onSurface
+                                val listTint = remember(list, isDark) {
+                                    val color = filterPickerViewModel.getColor(list.tint, isDark)
+                                    if (color != null) Color(color) else onSurface
                                 }
-                            },
-                            onDismiss = {
-                                showListPicker = false
-                                filterPickerViewModel.onQueryChange("")
-                            },
-                        )
-                    }
+                                val listIcon = remember(list) { filterPickerViewModel.getIcon(list) }
+                                var showListPicker by remember { mutableStateOf(false) }
+                                LaunchedEffect(list) { showListPicker = false }
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(16.dp),
+                                ) {
+                                    TitleField(
+                                        title = state.task.title.orEmpty(),
+                                        onTitleChange = viewModel::setTitle,
+                                        focusRequester = titleFocusRequester,
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    ListPickerRow(
+                                        listName = list.title,
+                                        icon = listIcon,
+                                        tint = listTint,
+                                        onClick = { showListPicker = true },
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    DescriptionRow(
+                                        description = state.task.notes.orEmpty(),
+                                        onDescriptionChange = viewModel::setDescription,
+                                    )
+                                    
+                                    HorizontalDivider()
+                                    ListRow(
+                                        list = state.list,
+                                        onClick = { /* TODO: Open list picker */ },
+                                    )
+                                    HorizontalDivider()
+                                    DueDateRow(
+                                        dueDate = state.task.dueDate,
+                                        hasDueDateAlarm = state.hasDueDateAlarm,
+                                        is24HourFormat = is24HourFormat(),
+                                        alwaysDisplayFullDate = state.alwaysDisplayFullDate,
+                                        onClick = { showDatePicker = true },
+                                    )
+                                    HorizontalDivider()
+                                    RepeatRow(
+                                        recurrence = state.task.recurrence,
+                                        repeatFrom = state.task.repeatFrom,
+                                        onClick = { /* TODO: Open repeat dialog */ },
+                                        onRepeatFromChanged = { viewModel.setRepeatFrom(it) },
+                                    )
+                                    
+                                    HorizontalDivider()
+                                    PriorityRow(
+                                        priority = state.task.priority,
+                                        onChangePriority = { viewModel.setPriority(it) },
+                                    )
+                                    
+                                    HorizontalDivider()
+                                    InfoRow(
+                                        creationDate = state.task.creationDate,
+                                        modificationDate = state.task.modificationDate,
+                                        completionDate = state.task.completionDate,
+                                    )
+                                    
+                                    if (showDatePicker) {
+                                        DatePickerDialog(
+                                            initialDate = state.task.dueDate,
+                                            onDateSelected = {
+                                                viewModel.setDueDate(it)
+                                                showDatePicker = false
+                                            },
+                                            onDismiss = { showDatePicker = false },
+                                        )
+                                    }
+                                    
+                                    if (showRecurrenceDialog) {
+                                        BasicRecurrenceDialog(
+                                            recurrence = state.task.recurrence,
+                                            onDismiss = { showRecurrenceDialog = false },
+                                            onRecurrenceSelected = { viewModel.setRecurrence(it) },
+                                        )
+                                    }
+                                
+                                if (showListPicker) {
+                                    val pickerState by filterPickerViewModel.viewState.collectAsState()
+                                    val searching = pickerState.query.isNotBlank()
+                                    val onSurfaceArgb = remember(onSurface) { onSurface.toArgb() }
+                                    ListPickerDialog(
+                                        filters = if (searching) { pickerState.searchResults} else {pickerState.filters},
+                                        query = pickerState.query,
+                                        onQueryChange = filterPickerViewModel::onQueryChange,
+                                        selected = list,
+                                        onClick = { filter ->
+                                            when (filter) {
+                                                is NavigationDrawerSubheader ->
+                                                    filterPickerViewModel.onClick(filter)
+                                                is CaldavFilter -> {
+                                                    viewModel.setList(filter)
+                                                    showListPicker = false
+                                                    filterPickerViewModel.onQueryChange("")
+                                                }
+                                            }
+                                        },
+                                        getIcon = { filterPickerViewModel.getIcon(it) },
+                                        getColor = { filter ->
+                                            filterPickerViewModel.getColor(filter.tint, isDark)
+                                                ?: onSurfaceArgb
+                                        },
+                                        onAddClick = { header ->
+                                            header.id.toLongOrNull()?.let { accountId ->
+                                                onCreateList(accountId)
+                                            }
+                                        },
+                                        onDismiss = {
+                                            showListPicker = false
+                                            filterPickerViewModel.onQueryChange("")
+                                        },
+                                    )
+                                }
+                                }
+                            }
                 }
             }
         }
-    }
 }
+
 
 @Composable
 private fun TitleField(

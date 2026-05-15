@@ -335,4 +335,12 @@
     <string name="enabled">Enabled</string>
     <string name="hide_unused_tags">Hide unused tags</string>
     <string name="hide_unused_places">Hide unused places</string>
+    <string name="repeat_option_does_not_repeat">Does not repeat</string>
+    <string name="repeat_option_every_day">Every day</string>
+    <string name="repeat_option_every_week">Every week</string>
+    <string name="repeat_option_every_month">Every month</string>
+    <string name="repeat_option_every_year">Every year</string>
+    <string name="repeat_option_custom">Custom</string>
+    <string name="repeats_custom_recurrence">Custom recurrence</string>
+    <string name="repeat_custom">Custom</string>
 </resources>

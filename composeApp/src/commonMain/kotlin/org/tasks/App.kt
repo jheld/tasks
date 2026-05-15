@@ -39,6 +39,12 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,7 +88,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.takeOrElse
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -1443,7 +1448,17 @@ private fun TaskListPane(
             .fillMaxSize()
             .clipToBounds()
             .nestedScroll(topBarScrollConnection)
-            .nestedScroll(floatingToolbarScrollBehavior),
+            .nestedScroll(floatingToolbarScrollBehavior)
+            .onPreviewKeyEvent { event ->
+                if (event.key == Key.Escape && event.type == KeyEventType.KeyUp && searchActive) {
+                    searchActive = false
+                    searchQuery = ""
+                    viewModel.setSearchQuery(null)
+                    true
+                } else {
+                    false
+                }
+            },
     ) {
         // During pane transitions the listPane can briefly be composed with a zero or
         // near-zero size. Skip rendering in that window to avoid negative layout
