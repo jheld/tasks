@@ -28,6 +28,7 @@ import org.tasks.compose.chips.ChipDataProvider
 import org.tasks.compose.settings.NavigationDrawerViewModel
 import org.tasks.compose.settings.NavigationDrawerCustomizationViewModel
 import org.tasks.viewmodel.DateAndTimeViewModel
+import org.tasks.backup.TasksJsonExporter
 import org.tasks.data.MergedGeofence
 import org.tasks.data.TaskSaver
 import org.tasks.data.db.Database
@@ -81,6 +82,7 @@ import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
 import org.tasks.viewmodel.LocalAccountViewModel
 import org.tasks.viewmodel.HelpAndFeedbackViewModel
+import org.tasks.viewmodel.BackupsViewModel
 import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.ProCardViewModel
 import org.tasks.viewmodel.TasksAccountViewModel
@@ -515,6 +517,24 @@ val commonModule = module {
     viewModelOf(::DateAndTimeViewModel)
     viewModelOf(::NavigationDrawerViewModel)
     viewModelOf(::NavigationDrawerCustomizationViewModel)
+
+    single {
+        TasksJsonExporter(
+            taskDao = get(),
+            alarmDao = get(),
+            locationDao = get(),
+            tagDao = get(),
+            userActivityDao = get(),
+            taskAttachmentDao = get(),
+            caldavDao = get(),
+            tagDataDao = get(),
+            filterDao = get(),
+            taskListMetadataDao = get(),
+            vtodoCache = get(),
+            json = get(),
+        )
+    }
+    viewModelOf(::BackupsViewModel)
 }
 
 expect fun platformModule(): Module

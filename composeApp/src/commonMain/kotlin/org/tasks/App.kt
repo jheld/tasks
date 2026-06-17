@@ -102,6 +102,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import co.touchlab.kermit.Logger
+import org.tasks.compose.settings.BackupsScreen
 import org.tasks.compose.settings.DateAndTimeScreen
 import org.tasks.compose.settings.NavigationDrawerScreen
 import org.tasks.compose.settings.NavigationDrawerViewModel
@@ -136,6 +137,7 @@ import org.tasks.compose.StatusBarScrim
 import org.tasks.compose.WelcomeScreenLayout
 import org.tasks.compose.accounts.AddAccountScreen
 import org.tasks.compose.accounts.AddAccountViewModel
+import org.tasks.viewmodel.BackupsViewModel
 import org.tasks.compose.accounts.Platform
 import org.tasks.compose.chips.Chip
 import org.tasks.compose.chips.ChipDataProvider
@@ -2579,6 +2581,15 @@ private fun SettingsScreen(
                             onHideUnusedTags = { viewModel.updateHideUnusedTags(it) },
                             onPlacesEnabled = { viewModel.updatePlacesEnabled(it) },
                             onHideUnusedPlaces = { viewModel.updateHideUnusedPlaces(it) },
+                        )
+                    }
+                    is org.tasks.compose.settings.SettingsDestination.Backups -> {
+                        val viewModel = koinViewModel<BackupsViewModel>()
+                        val exportState = viewModel.exportState
+                        BackupsScreen(
+                            exportState = exportState,
+                            onExport = { viewModel.export("backups") },
+                            onDismissResult = { viewModel.resetState() },
                         )
                     }
                     is org.tasks.compose.settings.SettingsDestination -> {
