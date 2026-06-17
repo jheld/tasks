@@ -159,6 +159,7 @@ import org.tasks.compose.StatusBarScrim
 import org.tasks.compose.WelcomeScreenLayout
 import org.tasks.compose.accounts.AddAccountScreen
 import org.tasks.compose.accounts.AddAccountViewModel
+import org.tasks.viewmodel.BackupsViewModel
 import org.tasks.compose.accounts.Platform
 import org.tasks.compose.chips.ChipDataProvider
 import org.tasks.compose.tasklist.RowState
@@ -178,6 +179,7 @@ import org.tasks.compose.SubscriptionOnboardingScreen
 import org.tasks.compose.pricing.PricingScreen
 import org.tasks.compose.pricing.cardCheckout
 import org.tasks.compose.pricing.cardPortalLauncher
+import org.tasks.compose.settings.BackupsScreen
 import org.tasks.compose.settings.CaldavAccountSettingsDetail
 import org.tasks.compose.settings.CaldavAccountSettingsPane
 import org.tasks.compose.settings.RestorePurchasesScreen
@@ -3095,6 +3097,15 @@ private fun SettingsScreen(
                             onNavigateBack = {
                                 scope.launch { navigator.navigateBack() }
                             },
+                        )
+                    }
+                    is org.tasks.compose.settings.SettingsDestination.Backups -> {
+                        val viewModel = koinViewModel<BackupsViewModel>()
+                        val exportState = viewModel.exportState
+                        BackupsScreen(
+                            exportState = exportState,
+                            onExport = { viewModel.export("backups") },
+                            onDismissResult = { viewModel.resetState() },
                         )
                     }
                     is org.tasks.compose.settings.SettingsDestination -> {
