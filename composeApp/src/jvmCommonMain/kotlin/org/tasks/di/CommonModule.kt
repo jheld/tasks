@@ -104,16 +104,21 @@ import org.tasks.tags.TagPickerViewModel
 import org.tasks.tasklist.HeaderFormatter
 import org.tasks.viewmodel.AppViewModel
 import org.tasks.viewmodel.DrawerViewModel
+import org.tasks.viewmodel.EtebaseAccountSettingsViewModel
+import org.tasks.viewmodel.EtebaseCalendarSettingsViewModel
 import org.tasks.viewmodel.FilterPickerViewModel
 import org.tasks.viewmodel.GoogleTaskListSettingsViewModel
 import org.tasks.viewmodel.HelpAndFeedbackViewModel
 import org.tasks.viewmodel.LocalAccountViewModel
 import org.tasks.viewmodel.LocalListSettingsViewModel
 import org.tasks.viewmodel.MainSettingsViewModel
+import org.tasks.viewmodel.MicrosoftListSettingsViewModel
 import org.tasks.viewmodel.OpenTaskAccountViewModel
 import org.tasks.viewmodel.PendingTaskSaves
+import org.tasks.viewmodel.ProCardViewModel
 import org.tasks.viewmodel.ReminderChange
 import org.tasks.viewmodel.SortSettingsViewModel
+import org.tasks.viewmodel.TagSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
 import org.tasks.viewmodel.TaskListViewModel
 import org.tasks.viewmodel.TasksAccountViewModel
@@ -234,7 +239,7 @@ val commonModule = module {
             calendar = params.get(),
         )
     }
-    viewModel { params ->
+    viewModel<MicrosoftListSettingsViewModel> { params ->
         MicrosoftListSettingsViewModel(
             caldavDao = get(),
             taskDeleter = get(),
@@ -246,7 +251,7 @@ val commonModule = module {
             calendar = params.get(),
         )
     }
-    viewModel { params ->
+    viewModel<EtebaseCalendarSettingsViewModel> { params ->
         EtebaseCalendarSettingsViewModel(
             caldavDao = get(),
             clientProvider = get(),
@@ -258,7 +263,7 @@ val commonModule = module {
             calendar = params.get(),
         )
     }
-    viewModel { params ->
+    viewModel<TagSettingsViewModel> { params ->
         TagSettingsViewModel(
             tagDataDao = get(),
             refreshBroadcaster = get(),
@@ -270,7 +275,7 @@ val commonModule = module {
             tagData = params.get(),
         )
     }
-    viewModel {
+    viewModel<EtebaseAccountSettingsViewModel> {
         EtebaseAccountSettingsViewModel(
             caldavDao = get(),
             clientProvider = get(),
@@ -279,7 +284,7 @@ val commonModule = module {
             reporting = get(),
         )
     }
-    viewModel {
+    viewModel<ProCardViewModel> {
         ProCardViewModel(
             caldavDao = get(),
             subscriptionProvider = get(),
