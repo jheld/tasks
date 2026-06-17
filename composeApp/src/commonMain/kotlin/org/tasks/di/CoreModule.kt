@@ -25,6 +25,7 @@ import org.tasks.analytics.logCloudOnboarding
 import org.tasks.audio.SoundPlayer
 import org.tasks.auth.PurchaseClaim
 import org.tasks.auth.TasksServerEnvironment
+import org.tasks.backup.shared.TasksJsonExporter
 import org.tasks.billing.GitHubSponsorVerifier
 import org.tasks.billing.StripeCheckouts
 import org.tasks.billing.StripeClient
@@ -91,6 +92,7 @@ import org.tasks.sync.SyncAdapters
 import org.tasks.tags.TagPickerViewModel
 import org.tasks.tasklist.HeaderFormatter
 import org.tasks.viewmodel.AppViewModel
+import org.tasks.viewmodel.BackupsViewModel
 import org.tasks.viewmodel.CaldavAccountSettingsViewModel
 import org.tasks.viewmodel.CaldavCalendarSettingsViewModel
 import org.tasks.viewmodel.DrawerViewModel
@@ -820,6 +822,23 @@ val coreModule: Module =
                 calendar = params.get(),
             )
         }
+        single {
+            TasksJsonExporter(
+                taskDao = get(),
+                alarmDao = get(),
+                locationDao = get(),
+                tagDao = get(),
+                userActivityDao = get(),
+                taskAttachmentDao = get(),
+                caldavDao = get(),
+                tagDataDao = get(),
+                filterDao = get(),
+                taskListMetadataDao = get(),
+                vtodoCache = get(),
+                json = get(),
+            )
+        }
+        viewModelOf(::BackupsViewModel)
     }
 
 internal val notificationDefaults = NotificationSettings()

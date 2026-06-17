@@ -11,8 +11,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.tasks.analytics.Constants
-import org.tasks.auth.serverUrlError
 import org.tasks.analytics.Reporting
+import org.tasks.auth.serverUrlError
 import org.tasks.compose.settings.EtebaseAccountState
 import org.tasks.data.UUIDHelper
 import org.tasks.data.dao.CaldavDao
@@ -24,8 +24,8 @@ import org.tasks.resources.getString
 import org.tasks.security.Encryption
 import org.tasks.service.TaskDeleter
 import tasks.kmp.generated.resources.Res
-import tasks.kmp.generated.resources.etebase_url
 import tasks.kmp.generated.resources.error_adding_account
+import tasks.kmp.generated.resources.etebase_url
 import tasks.kmp.generated.resources.invalid_username_or_password
 import tasks.kmp.generated.resources.network_error
 import tasks.kmp.generated.resources.password_required
@@ -40,7 +40,6 @@ open class EtebaseAccountSettingsViewModel(
     private val taskDeleter: TaskDeleter,
     private val reporting: Reporting,
 ) : ViewModel() {
-
     private val accountId = MutableStateFlow<Long?>(null)
     private val _state = MutableStateFlow(EtebaseAccountState())
     val state: StateFlow<EtebaseAccountState> = _state
@@ -75,16 +74,17 @@ open class EtebaseAccountSettingsViewModel(
         val defaultUrl = getString(Res.string.etebase_url)
         val hasCustomUrl = !account.url.isNullOrBlank() && account.url != defaultUrl
         seededAccountId = account.id
-        _state.value = EtebaseAccountState(
-            url = account.url.orEmpty(),
-            username = account.username.orEmpty(),
-            password = "",
-            displayName = account.name.orEmpty(),
-            account = account,
-            loaded = true,
-            showUrl = hasCustomUrl,
-            hasCustomUrl = hasCustomUrl,
-        )
+        _state.value =
+            EtebaseAccountState(
+                url = account.url.orEmpty(),
+                username = account.username.orEmpty(),
+                password = "",
+                displayName = account.name.orEmpty(),
+                account = account,
+                loaded = true,
+                showUrl = hasCustomUrl,
+                hasCustomUrl = hasCustomUrl,
+            )
     }
 
     fun setUrl(value: String) {
@@ -172,7 +172,8 @@ open class EtebaseAccountSettingsViewModel(
                 onComplete()
                 return
             }
-            val credentialsChanged = urlValue != (currentAccount.url ?: "") ||
+            val credentialsChanged =
+                urlValue != (currentAccount.url ?: "") ||
                     usernameValue != (currentAccount.username ?: "") ||
                     passwordValue.isNotEmpty()
 
@@ -180,26 +181,25 @@ open class EtebaseAccountSettingsViewModel(
                 _state.update { it.copy(isLoading = true) }
                 try {
                     val currentSession = encryption.decrypt(currentAccount.password) ?: ""
-                    val session = if (passwordValue.isEmpty()) {
-                        clientProvider
-                            .forUrl(
-                                url = urlValue,
-                                username = usernameValue,
-                                password = null,
-                                session = currentSession,
-                                foreground = true,
-                            )
-                            .getSession()
-                    } else {
-                        clientProvider
-                            .forUrl(
-                                url = urlValue,
-                                username = usernameValue,
-                                password = passwordValue,
-                                foreground = true,
-                            )
-                            .getSession()
-                    }
+                    val session =
+                        if (passwordValue.isEmpty()) {
+                            clientProvider
+                                .forUrl(
+                                    url = urlValue,
+                                    username = usernameValue,
+                                    password = null,
+                                    session = currentSession,
+                                    foreground = true,
+                                ).getSession()
+                        } else {
+                            clientProvider
+                                .forUrl(
+                                    url = urlValue,
+                                    username = usernameValue,
+                                    password = passwordValue,
+                                    foreground = true,
+                                ).getSession()
+                        }
                     updateAccount(currentAccount, urlValue, effectiveName, usernameValue, session)
                     onComplete()
                 } catch (e: Exception) {
@@ -216,14 +216,14 @@ open class EtebaseAccountSettingsViewModel(
         } else {
             _state.update { it.copy(isLoading = true) }
             try {
-                val session = clientProvider
-                    .forUrl(
-                        url = urlValue,
-                        username = usernameValue,
-                        password = passwordValue,
-                        foreground = true,
-                    )
-                    .getSession()
+                val session =
+                    clientProvider
+                        .forUrl(
+                            url = urlValue,
+                            username = usernameValue,
+                            password = passwordValue,
+                            foreground = true,
+                        ).getSession()
                 addAccount(urlValue, effectiveName, usernameValue, session)
                 reporting.logEvent(
                     "sync_add_account",
@@ -252,7 +252,7 @@ open class EtebaseAccountSettingsViewModel(
                 username = username,
                 password = encryption.encrypt(session),
                 uuid = UUIDHelper.newUUID(),
-            )
+            ),
         )
     }
 
@@ -270,7 +270,7 @@ open class EtebaseAccountSettingsViewModel(
                 username = username,
                 password = newSession?.let { encryption.encrypt(it) } ?: current.password,
                 error = "",
-            )
+            ),
         )
     }
 
@@ -280,11 +280,12 @@ open class EtebaseAccountSettingsViewModel(
         val sanitizedMessage = sanitizeError(errorMessage)
         _state.update {
             it.copy(
-                snackbar = when (e) {
-                    is UnauthorizedException -> getString(Res.string.invalid_username_or_password)
-                    is ConnectionException -> getString(Res.string.network_error)
-                    else -> getString(Res.string.error_adding_account, sanitizedMessage)
-                }
+                snackbar =
+                    when (e) {
+                        is UnauthorizedException -> getString(Res.string.invalid_username_or_password)
+                        is ConnectionException -> getString(Res.string.network_error)
+                        else -> getString(Res.string.error_adding_account, sanitizedMessage)
+                    },
             )
         }
     }
