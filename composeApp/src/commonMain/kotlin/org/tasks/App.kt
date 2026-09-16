@@ -197,6 +197,7 @@ import org.tasks.compose.settings.TagSettingsScreen
 import org.tasks.compose.settings.LocalAccountSettingsDetail
 import org.tasks.compose.settings.LocalAccountSettingsPane
 import org.tasks.compose.settings.LookAndFeelDetail
+import org.tasks.compose.settings.DateAndTimeScreen
 import org.tasks.compose.settings.MainSettingsScreen
 import org.tasks.compose.settings.ManageSubscriptionSheetContent
 import org.tasks.compose.settings.OpenTaskAccountSettingsDetail
@@ -256,6 +257,7 @@ import org.tasks.viewmodel.FilterPickerViewModel
 import org.tasks.viewmodel.ListSettingsViewModel
 import org.tasks.viewmodel.GoogleTaskListSettingsViewModel
 import org.tasks.viewmodel.MicrosoftListSettingsViewModel
+import org.tasks.viewmodel.DateAndTimeViewModel
 import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.PendingTaskSaves
 import org.tasks.viewmodel.ProCardViewModel
@@ -3037,6 +3039,32 @@ private fun SettingsScreen(
                                 scope.launch { navigator.navigateBack() }
                             },
                             onSubscribe = onUpgradeClick,
+                        )
+                    }
+                    is org.tasks.compose.settings.SettingsDestination.DateAndTime -> {
+                        val dateAndTimeVM = koinViewModel<DateAndTimeViewModel>()
+                        DateAndTimeScreen(
+                            fullDateEnabled = dateAndTimeVM.fullDateEnabled,
+                            morningSummary = dateAndTimeVM.morningSummary,
+                            afternoonSummary = dateAndTimeVM.afternoonSummary,
+                            eveningSummary = dateAndTimeVM.eveningSummary,
+                            nightSummary = dateAndTimeVM.nightSummary,
+                            autoDismissListEnabled = dateAndTimeVM.autoDismissListEnabled,
+                            autoDismissEditEnabled = dateAndTimeVM.autoDismissEditEnabled,
+                            autoDismissWidgetEnabled = dateAndTimeVM.autoDismissWidgetEnabled,
+                            onFullDate = { dateAndTimeVM.updateFullDate(it) },
+                            onMorning = { dateAndTimeVM.updateMorning(it) },
+                            onAfternoon = { dateAndTimeVM.updateAfternoon(it) },
+                            onEvening = { dateAndTimeVM.updateEvening(it) },
+                            onNight = { dateAndTimeVM.updateNight(it) },
+                            onAutoDismissList = { dateAndTimeVM.updateAutoDismissList(it) },
+                            onAutoDismissEdit = { dateAndTimeVM.updateAutoDismissEdit(it) },
+                            onAutoDismissWidget = { dateAndTimeVM.updateAutoDismissWidget(it) },
+                            onAutoDismissInfo = { dateAndTimeVM.openAutoDismissInfo() },
+                            onDismissAutoDismissInfo = { dateAndTimeVM.dismissAutoDismissInfo() },
+                            onNavigateBack = {
+                                scope.launch { navigator.navigateBack() }
+                            },
                         )
                     }
                     is org.tasks.compose.settings.SettingsDestination.NavigationDrawer -> {

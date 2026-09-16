@@ -114,6 +114,8 @@ import org.tasks.viewmodel.ReminderChange
 import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
 import org.tasks.viewmodel.TaskListViewModel
+import org.tasks.viewmodel.TasksAccountViewModel
+import org.tasks.viewmodel.DateAndTimeViewModel
 import java.util.Locale
 
 val commonModule = module {
@@ -224,4 +226,60 @@ val commonModule = module {
             calendar = params.get(),
         )
     }
+    viewModel { params ->
+        MicrosoftListSettingsViewModel(
+            caldavDao = get(),
+            taskDeleter = get(),
+            reporting = get(),
+            clientProvider = get(),
+            purchaseState = get(),
+            isDark = params.get(),
+            account = params.get(),
+            calendar = params.get(),
+        )
+    }
+    viewModel { params ->
+        EtebaseCalendarSettingsViewModel(
+            caldavDao = get(),
+            clientProvider = get(),
+            taskDeleter = get(),
+            reporting = get(),
+            purchaseState = get(),
+            isDark = params.get(),
+            account = params.get(),
+            calendar = params.get(),
+        )
+    }
+    viewModel { params ->
+        TagSettingsViewModel(
+            tagDataDao = get(),
+            refreshBroadcaster = get(),
+            reporting = get(),
+            purchaseState = get(),
+            tagMetadataSync = get(),
+            syncAdapters = get(),
+            isDark = params.get(),
+            tagData = params.get(),
+        )
+    }
+    viewModel {
+        EtebaseAccountSettingsViewModel(
+            caldavDao = get(),
+            clientProvider = get(),
+            encryption = get(),
+            taskDeleter = get(),
+            reporting = get(),
+        )
+    }
+    viewModel {
+        ProCardViewModel(
+            caldavDao = get(),
+            subscriptionProvider = get(),
+            tasksPreferences = get(),
+            accountDataRepository = get(),
+            serverEnvironment = get(),
+            platformConfiguration = get(),
+        )
+    }
+    viewModelOf(::DateAndTimeViewModel)
 }

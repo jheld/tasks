@@ -152,5 +152,13 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         val defaultOpenFilter = stringPreferencesKey("default_open_filter")
         val lastViewedList = stringPreferencesKey("last_viewed_list")
         val languageTag = stringPreferencesKey("language_tag")
+        val alwaysDisplayFullDate = booleanPreferencesKey("p_always_display_full_date")
+        val morningShortcut = intPreferencesKey("p_date_shortcut_morning")
+        val afternoonShortcut = intPreferencesKey("p_date_shortcut_afternoon")
+        val eveningShortcut = intPreferencesKey("p_date_shortcut_evening")
+        val nightShortcut = intPreferencesKey("p_date_shortcut_night")
+        val autoDismissDateTimeList = booleanPreferencesKey("p_auto_dismiss_datetime_list_screen")
+        val autoDismissDateTimeEdit = booleanPreferencesKey("p_auto_dismiss_datetime_edit_screen")
+        val autoDismissDateTimeWidget = booleanPreferencesKey("p_auto_dismiss_datetime_widget")
     }
 }
