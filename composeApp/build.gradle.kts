@@ -90,8 +90,8 @@ kotlin {
             implementation(libs.jetbrains.adaptive.layout)
             implementation(libs.jetbrains.adaptive.navigation)
             implementation(libs.jetbrains.adaptive.navigation3)
-            implementation(libs.material.icons.core)
-            implementation(libs.material.icons.extended)
+            implementation(libs.jetbrains.material.icons.core)
+            implementation(libs.jetbrains.material.icons.extended)
         }
         androidMain.dependencies {
             implementation(compose.preview)
