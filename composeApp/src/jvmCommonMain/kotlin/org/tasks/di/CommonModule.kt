@@ -119,7 +119,6 @@ import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TagSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
 import org.tasks.viewmodel.TaskListViewModel
-import org.tasks.viewmodel.TasksAccountViewModel
 import org.tasks.viewmodel.DateAndTimeViewModel
 import java.util.Locale
 
