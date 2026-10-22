@@ -110,6 +110,7 @@ import org.tasks.viewmodel.LocalListSettingsViewModel
 import org.tasks.viewmodel.LookAndFeelViewModel
 import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.NavigationDrawerViewModel
+import org.tasks.compose.settings.NavigationDrawerCustomizationViewModel
 import org.tasks.viewmodel.NotificationsViewModel
 import org.tasks.viewmodel.OpenTaskAccountViewModel
 import org.tasks.viewmodel.PendingTaskSaves
@@ -472,6 +473,15 @@ val coreModule: Module = module {
             appPreferences = get(),
             refreshBroadcaster = get(),
             persistenceScope = get(),
+        )
+    }
+    viewModel<NavigationDrawerCustomizationViewModel> {
+        NavigationDrawerCustomizationViewModel(
+            filterProvider = get(),
+            filterDao = get(),
+            caldavDao = get(),
+            tagDataDao = get(),
+            locationDao = get(),
         )
     }
     viewModel {

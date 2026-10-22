@@ -76,6 +76,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
@@ -328,6 +329,8 @@ fun App(
             val reporting = koinInject<Reporting>()
             val pendingSaves = koinInject<PendingTaskSaves>()
             val subtaskTrees = koinInject<SubtaskTreeRegistry>()
+            var editListCalendarId by rememberSaveable { mutableStateOf<Long?>(null) }
+            var editTagUuid by rememberSaveable { mutableStateOf<String?>(null) }
             val hasAccount by appViewModel.hasAccount.collectAsState()
             val subscriptionProvider = koinInject<SubscriptionProvider>()
             val stripePurchases = koinInject<StripePurchases>()
@@ -441,6 +444,68 @@ fun App(
                 )
             } else {
                 null
+            }
+
+            // Dialog state for editing tags and lists from the customize drawer
+            val caldavDao = koinInject<CaldavDao>()
+            val tagDataDao = koinInject<TagDataDao>()
+            val scope = rememberCoroutineScope()
+            val isDark = isDarkTheme()
+            val onSubscribe = { backStack.push(PricingDestination()) }
+
+            editListCalendarId?.let { calendarId ->
+                val filter by produceState<CaldavFilter?>(null) {
+                    val calendar = caldavDao.getCalendarById(calendarId)
+                        ?: run { editListCalendarId = null; return@produceState }
+                    val account = caldavDao.getAccountByUuid(calendar.account!!)
+                        ?: run { editListCalendarId = null; return@produceState }
+                    value = CaldavFilter(calendar = calendar, account = account)
+                }
+                filter?.let { f ->
+                    ListSettingsDialog(
+                        account = f.account,
+                        calendar = f.calendar,
+                        isDark = isDark,
+                        onDismiss = { updated ->
+                            editListCalendarId = null
+                            drawerViewModel?.updateFilters()
+                            taskListViewModel?.setFilter(
+                                CaldavFilter(calendar = updated ?: f.calendar, account = f.account)
+                            )
+                        },
+                        onDeleted = {
+                            editListCalendarId = null
+                            drawerViewModel?.updateFilters()
+                            scope.launch { taskListViewModel?.setFilter(MyTasksFilter.create()) }
+                        },
+                        onSubscribe = onSubscribe,
+                        onAddAccount = { backStack.push(AddAccountDestination) },
+                    )
+                }
+            }
+
+            editTagUuid?.let { uuid: String ->
+                val tagData by produceState<TagData?>(null, uuid) {
+                    value = tagDataDao.getByUuid(uuid)
+                        ?: run { editTagUuid = null; return@produceState }
+                }
+                tagData?.let { tag ->
+                    TagSettingsDialog(
+                        tagData = tag,
+                        isDark = isDark,
+                        onDismiss = { updated ->
+                            editTagUuid = null
+                            drawerViewModel?.updateFilters()
+                            taskListViewModel?.setFilter(TagFilter(updated ?: tag))
+                        },
+                        onDeleted = {
+                            editTagUuid = null
+                            drawerViewModel?.updateFilters()
+                            scope.launch { taskListViewModel?.setFilter(MyTasksFilter.create()) }
+                        },
+                        onSubscribe = onSubscribe,
+                    )
+                }
             }
 
             val topDestination = backStack.lastOrNull()
@@ -688,6 +753,8 @@ fun App(
             val currentHasWritableList by rememberUpdatedState(hasWritableList)
             val currentCanExpandSidebar by rememberUpdatedState(canExpandSidebar)
             val currentSidebarShownExpanded by rememberUpdatedState(sidebarShownExpanded)
+            val currentTaskListViewModel by rememberUpdatedState(taskListViewModel)
+            val currentCloseDetail by rememberUpdatedState({ closeDetail() })
 
             fun navigateToNewTask(filter: Filter? = currentTaskListState?.filter) {
                 reporting.addTask("fab")
@@ -1015,6 +1082,10 @@ fun App(
                                 cloudSignInSource = AnalyticsEvents.SOURCE_SETTINGS
                             },
                             onSubscribedClick = { showManageSheet = true },
+                            taskListViewModel = taskListViewModel,
+                            closeDetail = ::closeDetail,
+                            editTagUuid = { editTagUuid = it },
+                            editListCalendarId = { editListCalendarId = it },
                         )
                         if (showManageSheet) {
                             val isGitHubSponsor = subscriptionInfo?.isGitHubSponsor == true
@@ -1764,13 +1835,6 @@ private fun TaskListScreen(
     val sortViewModel = koinViewModel<SortSettingsViewModel>()
     val sortState by sortViewModel.state.collectAsState()
     var showSortSheet by remember { mutableStateOf(false) }
-    var editListCalendarId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var editTagUuid by rememberSaveable { mutableStateOf<String?>(null) }
-    val caldavDao = koinInject<CaldavDao>()
-    val tagDataDao = koinInject<TagDataDao>()
-    val scope = rememberCoroutineScope()
-    val isDark = isDarkTheme()
-
     val filterTint = state.filter.tint
     val themeColor = rememberThemeColor(filterTint)
 
@@ -1789,9 +1853,9 @@ private fun TaskListScreen(
         onMenuClick = onMenuClick,
         onSettingsClick = onSettingsClick,
         showListSettings = editableCaldavFilter != null,
-        onListSettingsClick = { editableCaldavFilter?.let { editListCalendarId = it.calendar.id } },
+        onListSettingsClick = {},
         showTagSettings = editableTagFilter != null,
-        onTagSettingsClick = { editableTagFilter?.let { editTagUuid = it.uuid } },
+        onTagSettingsClick = {},
         onCreateTask = onCreateTask,
         modifier = Modifier.fillMaxSize(),
     )
@@ -1803,61 +1867,6 @@ private fun TaskListScreen(
         sortViewModel = sortViewModel,
         completedAndHiddenEnabled = state.filter.supportsHiddenTasks(),
     )
-
-    editListCalendarId?.let { calendarId ->
-        val filter by produceState<CaldavFilter?>(null) {
-            val calendar = caldavDao.getCalendarById(calendarId)
-                ?: run { editListCalendarId = null; return@produceState }
-            val account = caldavDao.getAccountByUuid(calendar.account!!)
-                ?: run { editListCalendarId = null; return@produceState }
-            value = CaldavFilter(calendar = calendar, account = account)
-        }
-        filter?.let { f ->
-            ListSettingsDialog(
-                account = f.account,
-                calendar = f.calendar,
-                isDark = isDark,
-                onDismiss = { updated ->
-                    editListCalendarId = null
-                    drawerViewModel.updateFilters()
-                    viewModel.setFilter(
-                        CaldavFilter(calendar = updated ?: f.calendar, account = f.account)
-                    )
-                },
-                onDeleted = {
-                    editListCalendarId = null
-                    drawerViewModel.updateFilters()
-                    scope.launch { viewModel.setFilter(MyTasksFilter.create()) }
-                },
-                onSubscribe = onSubscribe,
-                onAddAccount = onAddAccount,
-            )
-        }
-    }
-
-    editTagUuid?.let { uuid ->
-        val tagData by produceState<TagData?>(null, uuid) {
-            value = tagDataDao.getByUuid(uuid)
-                ?: run { editTagUuid = null; return@produceState }
-        }
-        tagData?.let { tag ->
-            TagSettingsDialog(
-                tagData = tag,
-                isDark = isDark,
-                onDismiss = { updated ->
-                    editTagUuid = null
-                    drawerViewModel.updateFilters()
-                    viewModel.setFilter(TagFilter(updated ?: tag))
-                },
-                onDeleted = {
-                    editTagUuid = null
-                    drawerViewModel.updateFilters()
-                    scope.launch { viewModel.setFilter(MyTasksFilter.create()) }
-                },
-                onSubscribe = onSubscribe,
-            )
-        }
-    }
 }
 
 @Composable
@@ -2846,6 +2855,10 @@ private fun SettingsScreen(
     onMigrateToCloud: () -> Unit = {},
     onSignInClick: () -> Unit = {},
     onSubscribedClick: () -> Unit = {},
+    taskListViewModel: TaskListViewModel?,
+    closeDetail: () -> Unit,
+    editTagUuid: (String) -> Unit = {},
+    editListCalendarId: (Long) -> Unit = {},
 ) {
     val viewModel = koinViewModel<MainSettingsViewModel>()
     val proCardViewModel = koinViewModel<ProCardViewModel>()
@@ -3074,6 +3087,15 @@ private fun SettingsScreen(
                             onNavigateBack = {
                                 scope.launch { navigator.navigateBack() }
                             },
+                            onItemClick = { item ->
+                                (item as? org.tasks.filters.Filter)?.let { filter ->
+                                    taskListViewModel?.setFilter(filter)
+                                    scope.launch { navigator.navigateBack() }
+                                    closeDetail()
+                                }
+                            },
+                            onEditTag = editTagUuid,
+                            onEditList = editListCalendarId,
                         )
                     }
                     is org.tasks.compose.settings.SettingsDestination.WorksWith -> {

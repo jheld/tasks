@@ -298,6 +298,7 @@ fun ListSettingsScreen(
                 onColorClick = onOpenColorPicker,
                 onClearColor = { onSelectColor(null) },
                 onIconClick = onOpenIconPicker,
+                onClearIcon = { onSelectIcon(TasksIcons.LIST) },
             )
 
             // Shortcut and widget

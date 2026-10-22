@@ -27,12 +27,12 @@ import org.tasks.auth.OAuthFlow
 import org.tasks.auth.SignInHandler
 import org.tasks.auth.TasksOAuthClient
 import org.tasks.billing.BillingProvider
-import org.tasks.billing.PurchaseEntitlement
 import org.tasks.billing.DesktopLinkClient
 import org.tasks.billing.DesktopLinkClientImpl
 import org.tasks.billing.GitHubSponsorClient
 import org.tasks.billing.GitHubSponsorClientImpl
 import org.tasks.billing.LocalSubscriptionProvider
+import org.tasks.billing.PurchaseEntitlement
 import org.tasks.billing.SubscriptionProvider
 import org.tasks.caldav.FileStorage
 import org.tasks.caldav.VtodoCache
@@ -97,26 +97,29 @@ private var cachedDataDir: File? = null
 private var cachedCookieDir: File? = null
 private var cachedLogDir: File? = null
 
-internal fun resetDirectories() = synchronized(directoryLock) {
-    overrideResolved = false
-    cachedOverrideDir = null
-    cachedDataDir = null
-    cachedCookieDir = null
-    cachedLogDir = null
-}
-
-private val overrideDir: File?
-    get() = synchronized(directoryLock) {
-        if (!overrideResolved) {
-            cachedOverrideDir = resolveOverrideDir()
-            overrideResolved = true
-        }
-        cachedOverrideDir
+internal fun resetDirectories() =
+    synchronized(directoryLock) {
+        overrideResolved = false
+        cachedOverrideDir = null
+        cachedDataDir = null
+        cachedCookieDir = null
+        cachedLogDir = null
     }
 
+private val overrideDir: File?
+    get() =
+        synchronized(directoryLock) {
+            if (!overrideResolved) {
+                cachedOverrideDir = resolveOverrideDir()
+                overrideResolved = true
+            }
+            cachedOverrideDir
+        }
+
 private fun resolveOverrideDir(): File? {
-    val path = System.getProperty("tasks.dataDir")?.takeIf { it.isNotBlank() }
-        ?: System.getenv("TASKS_DATA_DIR")?.takeIf { it.isNotBlank() }
+    val path =
+        System.getProperty("tasks.dataDir")?.takeIf { it.isNotBlank() }
+            ?: System.getenv("TASKS_DATA_DIR")?.takeIf { it.isNotBlank() }
     return path?.let { File(it) }?.also {
         require(it.exists() || it.mkdirs()) { "Failed to create data directory: $it" }
         require(it.isDirectory) { "Data directory path is not a directory: $it" }
@@ -124,336 +127,354 @@ private fun resolveOverrideDir(): File? {
 }
 
 val dataDir: File
-    get() = synchronized(directoryLock) {
-        cachedDataDir ?: resolveDataDir().also { cachedDataDir = it }
-    }
+    get() =
+        synchronized(directoryLock) {
+            cachedDataDir ?: resolveDataDir().also { cachedDataDir = it }
+        }
 
 private fun resolveDataDir(): File {
     overrideDir?.let { return it }
     val home = System.getProperty("user.home")
     val legacyDir = File(home, ".tasks.org")
     if (legacyDir.exists()) return legacyDir
-    val dir = when (platform()) {
-        Platform.MAC -> File(home, "Library/Application Support/$appName")
-        Platform.WINDOWS ->
-            File(System.getenv("LOCALAPPDATA") ?: "$home/AppData/Local", appName)
-        Platform.LINUX -> {
-            val xdgData = System.getenv("XDG_DATA_HOME") ?: "$home/.local/share"
-            File(xdgData, appName.lowercase())
+    val dir =
+        when (platform()) {
+            Platform.MAC -> {
+                File(home, "Library/Application Support/$appName")
+            }
+
+            Platform.WINDOWS -> {
+                File(System.getenv("LOCALAPPDATA") ?: "$home/AppData/Local", appName)
+            }
+
+            Platform.LINUX -> {
+                val xdgData = System.getenv("XDG_DATA_HOME") ?: "$home/.local/share"
+                File(xdgData, appName.lowercase())
+            }
         }
-    }
     return dir.also { it.mkdirs() }
 }
 
 val cookieDir: File
-    get() = synchronized(directoryLock) {
-        cachedCookieDir ?: File(dataDir, "cookies").also { cachedCookieDir = it }
-    }
+    get() =
+        synchronized(directoryLock) {
+            cachedCookieDir ?: File(dataDir, "cookies").also { cachedCookieDir = it }
+        }
 
 val logDir: File
-    get() = synchronized(directoryLock) {
-        cachedLogDir ?: resolveLogDir().also { cachedLogDir = it }
-    }
+    get() =
+        synchronized(directoryLock) {
+            cachedLogDir ?: resolveLogDir().also { cachedLogDir = it }
+        }
 
 private fun resolveLogDir(): File {
     overrideDir?.let { return File(it, "logs").also { d -> d.mkdirs() } }
     val home = System.getProperty("user.home")
-    val dir = when (platform()) {
-        Platform.MAC -> File(home, "Library/Logs/$appName")
-        Platform.WINDOWS -> File(dataDir, "logs")
-        Platform.LINUX -> {
-            val xdgState = System.getenv("XDG_STATE_HOME") ?: "$home/.local/state"
-            File(xdgState, "${appName.lowercase()}/logs")
+    val dir =
+        when (platform()) {
+            Platform.MAC -> {
+                File(home, "Library/Logs/$appName")
+            }
+
+            Platform.WINDOWS -> {
+                File(dataDir, "logs")
+            }
+
+            Platform.LINUX -> {
+                val xdgState = System.getenv("XDG_STATE_HOME") ?: "$home/.local/state"
+                File(xdgState, "${appName.lowercase()}/logs")
+            }
         }
-    }
     return dir.also { it.mkdirs() }
 }
 
-actual fun platformModule(): Module = module {
-
-    single {
-        PlatformConfiguration(
-            versionCode = JvmBuildConfig.VERSION_CODE,
-            billingProvider = BillingProvider.LOCAL,
-            thirdPartySyncRequiresPro = true,
-            supportsCaldav = true,
-            supportsEteSync = true,
-            supportsGoogleTasks = true,
-            supportsMicrosoft = true,
-            supportsSwipeToSnooze = false,
-            supportsSystemNotificationSettings = supportsSystemNotificationSettings(),
-            showNotificationsEnabledSwitch = true,
-            supportsLanguageSelection = true,
-            localeChangeRequiresRestart = true,
-            supportsMcpServer = true,
-        )
-    }
-    single<org.tasks.analytics.Analytics> { get<Reporting>() }
-    single<Reporting> {
-        PostHogReporting(
-            apiKey = JvmBuildConfig.POSTHOG_KEY,
-            dataDir = dataDir,
-            tasksPreferences = get(),
-        )
-    }
-    single { DesktopUserDecisionRegistry() }
-    single<CertStore> { DesktopCertStore(dataDir = dataDir, userDecisionRegistry = get()) }
-    factory<OkHttpClientFactory> {
-        DesktopOkHttpClientFactory(
-            certStore = get(),
-            encryption = get(),
-            cookieDir = cookieDir,
-        )
-    }
-    factory<OAuthFlow> {
-        val httpClient = kotlinx.coroutines.runBlocking {
-            get<OkHttpClientFactory>().newClient(foreground = true)
-        }
-        DesktopOAuthFlow(
-            oauthClient = TasksOAuthClient(httpClient.toKtor()),
-            serverEnvironment = get(),
-        )
-    }
-    factoryOf(::DesktopSignInHandler) bind SignInHandler::class
-    single<MicrosoftClientProvider> {
-        DesktopMicrosoftClientProvider(
-            encryption = get(),
-            caldavDao = get(),
-            okHttpClientFactory = get(),
-            cookieDir = cookieDir,
-        )
-    }
-    factory {
-        val taskCreator = TaskCreator()
-        MicrosoftSynchronizer(
-            caldavDao = get(),
-            taskDao = get(),
-            dirtyDao = get(),
-            taskSaver = get(),
-            refreshBroadcaster = get(),
-            taskDeleter = get(),
-            reporting = get(),
-            clientProvider = get(),
-            tagDao = get(),
-            tagDataDao = get(),
-            appPreferences = get(),
-            vtodoCache = get(),
-            createTask = { taskCreator.createBlankTask() },
-            setDefaultList = { },
-        )
-    }
-    factory {
-        org.tasks.googleapis.ProxyAuthProvider(
-            caldavDao = get(),
-            encryption = get(),
-            jwtProvider = { get<PurchaseEntitlement>().getJwt() },
-        )
-    }
-
-    single { get<Database>().apiDao() }
-    single { ApiQueryEngine(get()) }
-    single<ApiTaskFactory> {
-        DatabaseApiTaskFactory(
-            taskDao = get(),
-            caldavDao = get(),
-            taskCreator = TaskCreator(),
-            taskSaver = get(),
-            defaultListProvider = get(),
-            appPreferences = get(),
-        )
-    }
-    single<ListManager> {
-        ApiListManager(
-            caldavDao = get(),
-            taskDeleter = get(),
-            caldavClientProvider = get(),
-            etebaseClientProvider = get(),
-            microsoftClientProvider = get(),
-            gtasksInvoker = { account ->
-                org.tasks.googleapis.GtasksInvoker(
-                    org.tasks.googleapis.GoogleTasksCredentialsAdapter(
-                        account = account,
-                        encryption = get(),
-                        proxyAuthProvider = get(),
-                        caldavDao = get(),
-                        oauthClient = get(),
-                    )
-                )
-            },
-        )
-    }
-    single {
-        ApiWriter(
-            apiDao = get(),
-            taskDao = get(),
-            caldavDao = get(),
-            tagDao = get(),
-            tagDataDao = get(),
-            alarmDao = get(),
-            locationDao = get(),
-            taskFactory = get(),
-            taskSaver = get(),
-            taskCompleter = get(),
-            taskMover = get(),
-            taskDeleter = get(),
-            alarmService = get(),
-            locationService = get(),
-            listManager = get(),
-            tagMetadataEditor = get(),
-        )
-    }
-    single { DatabaseTasksApi(engine = get(), writer = get()) }
-    single {
-        DesktopMcpServerController(
-            preferences = get(),
-            encryption = get(),
-            api = get(),
-            analytics = get(),
-            scope = get(),
-        )
-    }
-    single<McpServerController> { get<DesktopMcpServerController>() }
-    single {
-        KeyStoreEncryption(
-            DesktopKeyProvider(
-                serviceName = "Tasks.org",
-                accountName = "encryption-key",
-                fallbackKeyFile = File(dataDir, ".key"),
-                hasEncryptedData = { File(dataDir, PurchaseEntitlement.FILE_NAME).exists() },
+actual fun platformModule(): Module =
+    module {
+        single {
+            PlatformConfiguration(
+                versionCode = JvmBuildConfig.VERSION_CODE,
+                billingProvider = BillingProvider.LOCAL,
+                thirdPartySyncRequiresPro = true,
+                supportsCaldav = true,
+                supportsEteSync = true,
+                supportsGoogleTasks = true,
+                supportsMicrosoft = true,
+                supportsSwipeToSnooze = false,
+                supportsSystemNotificationSettings = supportsSystemNotificationSettings(),
+                showNotificationsEnabledSwitch = true,
+                supportsLanguageSelection = true,
+                localeChangeRequiresRestart = true,
+                supportsMcpServer = true,
             )
-        )
-    }
-    single<Database> {
-        val dbFile = File(dataDir, Database.NAME)
-        Room.databaseBuilder<Database>(name = dbFile.absolutePath)
-            .setBundledDriver()
-            .addMigrations(*CommonMigrations.all)
-            .addCallback(Database.CALLBACK)
-            .build()
-    }
-    single {
-        val dataStoreFile = File(dataDir, dataStoreFileName)
-        TasksPreferences(createDataStore { dataStoreFile.absolutePath })
-    }
-    factory { Upgrader(get(), CommonUpgrades.all(get())) }
-    factory {
-        FileStorage(dataDir.absolutePath)
-    }
-    factory {
-        EtebaseClientProvider(
-            filesDir = dataDir.absolutePath,
-            encryption = get(),
-            caldavDao = get(),
-            httpClientFactory = get(),
-        )
-    }
-    factory<OpenTasksSyncer> {
-        val caldavDao = get<org.tasks.data.dao.CaldavDao>()
-        val refreshBroadcaster = get<org.tasks.broadcast.RefreshBroadcaster>()
-        object : OpenTasksSyncer {
-            override suspend fun sync(hasPro: Boolean) {
-                caldavDao.getAccounts(org.tasks.data.entity.CaldavAccount.TYPE_OPENTASKS).forEach { account ->
-                    account.error = "OpenTasks sync is not supported on desktop"
-                    caldavDao.update(account)
-                    refreshBroadcaster.broadcastRefresh()
+        }
+        single<org.tasks.analytics.Analytics> { get<Reporting>() }
+        single<Reporting> {
+            PostHogReporting(
+                apiKey = JvmBuildConfig.POSTHOG_KEY,
+                dataDir = dataDir,
+                tasksPreferences = get(),
+            )
+        }
+        single { DesktopUserDecisionRegistry() }
+        single<CertStore> { DesktopCertStore(dataDir = dataDir, userDecisionRegistry = get()) }
+        factory<OkHttpClientFactory> {
+            DesktopOkHttpClientFactory(
+                certStore = get(),
+                encryption = get(),
+                cookieDir = cookieDir,
+            )
+        }
+        factory<OAuthFlow> {
+            val httpClient =
+                kotlinx.coroutines.runBlocking {
+                    get<OkHttpClientFactory>().newClient(foreground = true)
+                }
+            DesktopOAuthFlow(
+                oauthClient = TasksOAuthClient(httpClient.toKtor()),
+                serverEnvironment = get(),
+            )
+        }
+        factoryOf(::DesktopSignInHandler) bind SignInHandler::class
+        single<MicrosoftClientProvider> {
+            DesktopMicrosoftClientProvider(
+                encryption = get(),
+                caldavDao = get(),
+                okHttpClientFactory = get(),
+                cookieDir = cookieDir,
+            )
+        }
+        factory {
+            val taskCreator = TaskCreator()
+            MicrosoftSynchronizer(
+                caldavDao = get(),
+                taskDao = get(),
+                dirtyDao = get(),
+                taskSaver = get(),
+                refreshBroadcaster = get(),
+                taskDeleter = get(),
+                reporting = get(),
+                clientProvider = get(),
+                tagDao = get(),
+                tagDataDao = get(),
+                appPreferences = get(),
+                vtodoCache = get(),
+                createTask = { taskCreator.createBlankTask() },
+                setDefaultList = { },
+            )
+        }
+        factory {
+            org.tasks.googleapis.ProxyAuthProvider(
+                caldavDao = get(),
+                encryption = get(),
+                jwtProvider = { get<PurchaseEntitlement>().getJwt() },
+            )
+        }
+
+        single { get<Database>().apiDao() }
+        single { ApiQueryEngine(get()) }
+        single<ApiTaskFactory> {
+            DatabaseApiTaskFactory(
+                taskDao = get(),
+                caldavDao = get(),
+                taskCreator = TaskCreator(),
+                taskSaver = get(),
+                defaultListProvider = get(),
+                appPreferences = get(),
+            )
+        }
+        single<ListManager> {
+            ApiListManager(
+                caldavDao = get(),
+                taskDeleter = get(),
+                caldavClientProvider = get(),
+                etebaseClientProvider = get(),
+                microsoftClientProvider = get(),
+                gtasksInvoker = { account ->
+                    org.tasks.googleapis.GtasksInvoker(
+                        org.tasks.googleapis.GoogleTasksCredentialsAdapter(
+                            account = account,
+                            encryption = get(),
+                            proxyAuthProvider = get(),
+                            caldavDao = get(),
+                            oauthClient = get(),
+                        ),
+                    )
+                },
+            )
+        }
+        single {
+            ApiWriter(
+                apiDao = get(),
+                taskDao = get(),
+                caldavDao = get(),
+                tagDao = get(),
+                tagDataDao = get(),
+                alarmDao = get(),
+                locationDao = get(),
+                taskFactory = get(),
+                taskSaver = get(),
+                taskCompleter = get(),
+                taskMover = get(),
+                taskDeleter = get(),
+                alarmService = get(),
+                locationService = get(),
+                listManager = get(),
+                tagMetadataEditor = get(),
+            )
+        }
+        single { DatabaseTasksApi(engine = get(), writer = get()) }
+        single {
+            DesktopMcpServerController(
+                preferences = get(),
+                encryption = get(),
+                api = get(),
+                analytics = get(),
+                scope = get(),
+            )
+        }
+        single<McpServerController> { get<DesktopMcpServerController>() }
+        single {
+            KeyStoreEncryption(
+                DesktopKeyProvider(
+                    serviceName = "Tasks.org",
+                    accountName = "encryption-key",
+                    fallbackKeyFile = File(dataDir, ".key"),
+                    hasEncryptedData = { File(dataDir, PurchaseEntitlement.FILE_NAME).exists() },
+                ),
+            )
+        }
+        single<Database> {
+            val dbFile = File(dataDir, Database.NAME)
+            Room
+                .databaseBuilder<Database>(name = dbFile.absolutePath)
+                .setBundledDriver()
+                .addMigrations(*CommonMigrations.all)
+                .addCallback(Database.CALLBACK)
+                .build()
+        }
+        single {
+            val dataStoreFile = File(dataDir, dataStoreFileName)
+            TasksPreferences(createDataStore { dataStoreFile.absolutePath })
+        }
+        factory { Upgrader(get(), CommonUpgrades.all(get())) }
+        factory {
+            FileStorage(dataDir.absolutePath)
+        }
+        factory {
+            EtebaseClientProvider(
+                filesDir = dataDir.absolutePath,
+                encryption = get(),
+                caldavDao = get(),
+                httpClientFactory = get(),
+            )
+        }
+        factory<OpenTasksSyncer> {
+            val caldavDao = get<org.tasks.data.dao.CaldavDao>()
+            val refreshBroadcaster = get<org.tasks.broadcast.RefreshBroadcaster>()
+            object : OpenTasksSyncer {
+                override suspend fun sync(hasPro: Boolean) {
+                    caldavDao.getAccounts(org.tasks.data.entity.CaldavAccount.TYPE_OPENTASKS).forEach { account ->
+                        account.error = "OpenTasks sync is not supported on desktop"
+                        caldavDao.update(account)
+                        refreshBroadcaster.broadcastRefresh()
+                    }
                 }
             }
         }
+        factoryOf(::VtodoCache)
+        single {
+            PurchaseEntitlement(
+                dataDir = dataDir.path,
+                encryption = get<KeyStoreEncryption>(),
+                httpClientFactory = get(),
+                serverEnvironment = get(),
+                scope = get(),
+                json = get(),
+                syncAdapters = get(),
+            ).also { it.initialize() }
+        }
+        single<SubscriptionProvider> {
+            LocalSubscriptionProvider()
+        }
+        single<DesktopLinkClient> {
+            DesktopLinkClientImpl(
+                httpClientFactory = get(),
+                serverEnvironment = get(),
+                purchaseEntitlement = get(),
+                json = get(),
+            )
+        }
+        single<GitHubSponsorClient> {
+            GitHubSponsorClientImpl(
+                httpClientFactory = get(),
+                serverEnvironment = get(),
+                purchaseEntitlement = get(),
+                json = get(),
+            )
+        }
+        single { SseTokenProvider() } bind FcmTokenProvider::class
+        single {
+            SseClient(
+                scope = get(),
+                backgroundWork = get(),
+                caldavDao = get(),
+                encryption = get<KeyStoreEncryption>(),
+                environment = get(),
+                httpClientFactory = get<KtorClientFactory>(),
+                token = { get<SseTokenProvider>().token },
+            )
+        }
+        single {
+            NotificationActionHandler(
+                scope = get(),
+                taskDao = get(),
+                alarmService = { get<AlarmService>() },
+                taskCompleter = get(),
+                notifier = { get<Notifier>() },
+                taskRequests = get(),
+            )
+        }
+        single {
+            DesktopNotifier(
+                taskDao = get(),
+                notificationDao = get(),
+                alarmDao = get(),
+                refreshBroadcaster = get(),
+                signalScheduler = { get<NotificationScheduler>().signal() },
+                gatesOnPermission = { platform() == Platform.MAC },
+                notificationsEnabled = {
+                    get<TasksPreferences>().get(TasksPreferences.notificationsEnabled, true)
+                },
+                recordScreenCleared = {
+                    get<TasksPreferences>().set(TasksPreferences.screenClearedAtShutdown, true)
+                },
+                takeScreenCleared = {
+                    get<TasksPreferences>()
+                        .getAndSet(TasksPreferences.screenClearedAtShutdown, false) == true
+                },
+                claimPlatformIds = {
+                    val current = notificationSessionToken()
+                    current != null && get<TasksPreferences>()
+                        .getAndSet(TasksPreferences.notificationSession, current) == current
+                },
+                createBackend = {
+                    val listener = get<NotificationActionHandler>()
+                    when (platform()) {
+                        Platform.LINUX -> NucleusLinuxNotifications.create(listener)
+                        Platform.WINDOWS -> NucleusWindowsNotifications.create(listener)
+                        Platform.MAC -> NucleusMacNotifications.create(listener)
+                    }
+                },
+            )
+        }
+        factory<Notifier> { get<DesktopNotifier>() }
+        factory<TaskCleanup> { DesktopCleanup(notifier = get<DesktopNotifier>()) }
+        single {
+            val alarmService = lazy { get<AlarmService>() }
+            NotificationScheduler(
+                alarmService = alarmService::value,
+                trigger = { get<DesktopNotifier>().triggerNotifications(it) },
+                hold = { get<DesktopNotifier>().hold() },
+            )
+        }
     }
-    factoryOf(::VtodoCache)
-    single {
-        PurchaseEntitlement(
-            dataDir = dataDir.path,
-            encryption = get<KeyStoreEncryption>(),
-            httpClientFactory = get(),
-            serverEnvironment = get(),
-            scope = get(),
-            json = get(),
-            syncAdapters = get(),
-        ).also { it.initialize() }
-    }
-    single<SubscriptionProvider> {
-        LocalSubscriptionProvider()
-    }
-    single<DesktopLinkClient> {
-        DesktopLinkClientImpl(
-            httpClientFactory = get(),
-            serverEnvironment = get(),
-            purchaseEntitlement = get(),
-            json = get(),
-        )
-    }
-    single<GitHubSponsorClient> {
-        GitHubSponsorClientImpl(
-            httpClientFactory = get(),
-            serverEnvironment = get(),
-            purchaseEntitlement = get(),
-            json = get(),
-        )
-    }
-    single { SseTokenProvider() } bind FcmTokenProvider::class
-    single {
-        SseClient(
-            scope = get(),
-            backgroundWork = get(),
-            caldavDao = get(),
-            encryption = get<KeyStoreEncryption>(),
-            environment = get(),
-            httpClientFactory = get<KtorClientFactory>(),
-            token = { get<SseTokenProvider>().token },
-        )
-    }
-    single {
-        NotificationActionHandler(
-            scope = get(),
-            taskDao = get(),
-            alarmService = { get<AlarmService>() },
-            taskCompleter = get(),
-            notifier = { get<Notifier>() },
-            taskRequests = get(),
-        )
-    }
-    single {
-        DesktopNotifier(
-            taskDao = get(),
-            notificationDao = get(),
-            alarmDao = get(),
-            refreshBroadcaster = get(),
-            signalScheduler = { get<NotificationScheduler>().signal() },
-            gatesOnPermission = { platform() == Platform.MAC },
-            notificationsEnabled = {
-                get<TasksPreferences>().get(TasksPreferences.notificationsEnabled, true)
-            },
-            recordScreenCleared = {
-                get<TasksPreferences>().set(TasksPreferences.screenClearedAtShutdown, true)
-            },
-            takeScreenCleared = {
-                get<TasksPreferences>()
-                    .getAndSet(TasksPreferences.screenClearedAtShutdown, false) == true
-            },
-            claimPlatformIds = {
-                val current = notificationSessionToken()
-                current != null && get<TasksPreferences>()
-                    .getAndSet(TasksPreferences.notificationSession, current) == current
-            },
-            createBackend = {
-                val listener = get<NotificationActionHandler>()
-                when (platform()) {
-                    Platform.LINUX -> NucleusLinuxNotifications.create(listener)
-                    Platform.WINDOWS -> NucleusWindowsNotifications.create(listener)
-                    Platform.MAC -> NucleusMacNotifications.create(listener)
-                }
-            },
-        )
-    }
-    factory<Notifier> { get<DesktopNotifier>() }
-    factory<TaskCleanup> { DesktopCleanup(notifier = get<DesktopNotifier>()) }
-    single {
-        val alarmService = lazy { get<AlarmService>() }
-        NotificationScheduler(
-            alarmService = alarmService::value,
-            trigger = { get<DesktopNotifier>().triggerNotifications(it) },
-            hold = { get<DesktopNotifier>().hold() },
-        )
-    }
-}
