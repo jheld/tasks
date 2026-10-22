@@ -85,8 +85,8 @@ class FilterProvider(
     suspend fun wearableFilters(): List<FilterListItem> =
             getAllFilters(showCreate = false, forceExpand = true, hideUnused = true)
 
-    suspend fun drawerCustomizationItems(forceExpand: Boolean = false): List<FilterListItem> =
-            getAllFilters(showBuiltIn = false, showCreate = true, forceExpand = forceExpand)
+    suspend fun drawerCustomizationItems(): List<FilterListItem> =
+            getAllFilters(showBuiltIn = false, showCreate = true, forceExpand = true)
 
     private suspend fun getDebugFilters(): List<FilterListItem> =
             if (TasksBuildConfig.DEBUG && tasksPreferences.get(showDebugFilters, false)) {
@@ -162,6 +162,7 @@ class FilterProvider(
                     }
                     .map(TagFilters::toTagFilter)
                     .sort()
+                val tagCount = children.size
                 listOf(
                     NavigationDrawerSubheader(
                         getString(Res.string.drawer_tags),

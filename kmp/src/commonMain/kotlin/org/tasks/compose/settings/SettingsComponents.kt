@@ -129,6 +129,7 @@ fun ColorIconCards(
     onColorClick: () -> Unit,
     onClearColor: () -> Unit,
     onIconClick: () -> Unit,
+    onClearIcon: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = SettingsContentPadding),
@@ -193,6 +194,19 @@ fun ColorIconCards(
                             .size(SettingsIconSize),
                     )
                 },
+                trailing = if (icon != TasksIcons.LABEL) {
+                    {
+                        IconButton(
+                            onClick = onClearIcon,
+                            modifier = Modifier.padding(end = 4.dp),
+                        ) {
+                            SymbolIcon(
+                                name = TasksIcons.CLEAR,
+                                contentDescription = null,
+                            )
+                        }
+                    }
+                } else null,
             )
         }
     }

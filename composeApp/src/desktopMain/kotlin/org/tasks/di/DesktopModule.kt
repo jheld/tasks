@@ -397,7 +397,9 @@ actual fun platformModule(): Module =
             ).also { it.initialize() }
         }
         single<SubscriptionProvider> {
-            LocalSubscriptionProvider()
+            EntitlementSubscriptionProvider(
+                entitlement = get(),
+            )
         }
         single<DesktopLinkClient> {
             DesktopLinkClientImpl(

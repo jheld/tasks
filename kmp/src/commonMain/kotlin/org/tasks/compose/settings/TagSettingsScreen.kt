@@ -127,6 +127,7 @@ fun TagSettingsScreen(
                 onColorClick = viewModel::openColorPicker,
                 onClearColor = { viewModel.selectColor(0) },
                 onIconClick = viewModel::openIconPicker,
+                onClearIcon = { viewModel.selectIcon(TasksIcons.LABEL) },
             )
 
             ShortcutWidgetCards(
