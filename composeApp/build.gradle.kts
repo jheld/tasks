@@ -177,9 +177,13 @@ compose.desktop {
     application {
         mainClass = "MainKt"
         jvmArgs(
-            "--add-opens", "java.base/sun.misc=ALL-UNNAMED",
-            "--add-opens", "jdk.unsupported/sun.misc=ALL-UNNAMED",
-            "--add-exports", "jdk.unsupported/sun.misc=ALL-UNNAMED"
+            // Each option is a single token on purpose. Conveyor stores the JVM options in a map
+            // keyed by the option string, so a repeated option collapses the list and leaves the
+            // surviving "--add-exports" without its value. The launcher then refuses to start the
+            // JVM with "Unrecognized option: --add-opens" and the app dies before showing a window.
+            "--add-opens=java.base/sun.misc=ALL-UNNAMED",
+            "--add-opens=jdk.unsupported/sun.misc=ALL-UNNAMED",
+            "--add-exports=jdk.unsupported/sun.misc=ALL-UNNAMED",
         )
 
         nativeDistributions {
