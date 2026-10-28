@@ -40,8 +40,8 @@ class EtebaseSynchronizer(
     private val vtodoCache: VtodoCache,
     private val reporting: Reporting,
 ) {
-    suspend fun sync(account: CaldavAccount, hasPro: Boolean) {
-        Logger.d("EtebaseSynchronizer") { "Synchronizing $account" }
+    suspend fun sync(account: CaldavAccount, hasPro: Boolean, forceRefresh: Boolean = false) {
+        Logger.d("EtebaseSynchronizer") { "Synchronizing $account forceRefresh=$forceRefresh" }
         if (!hasPro) {
             setError(account, getString(Res.string.subscription_required))
             return
@@ -51,7 +51,7 @@ class EtebaseSynchronizer(
             return
         }
         try {
-            synchronize(account)
+            synchronize(account, forceRefresh)
             if (account.lastSync == 0L) {
                 val taskCount = caldavDao.getTaskCountForAccount(account.uuid!!)
                 reporting.logEvent(
@@ -78,7 +78,7 @@ class EtebaseSynchronizer(
         }
     }
 
-    private suspend fun synchronize(account: CaldavAccount) {
+    private suspend fun synchronize(account: CaldavAccount, forceRefresh: Boolean = false) {
         val client = clientProvider.forAccount(account)
         val collections = client.getCollections()
         val uids = collections.map { it.uid }
@@ -112,13 +112,13 @@ class EtebaseSynchronizer(
                 caldavDao.update(calendar)
                 refreshBroadcaster.broadcastRefresh()
             }
-            fetchChanges(account, client, calendar, collection)
+            fetchChanges(account, client, calendar, collection, forceRefresh)
             pushLocalChanges(account, client, calendar, collection)
         }
     }
 
     private suspend fun setError(account: CaldavAccount, e: Throwable) =
-            setError(account, e.message)
+        setError(account, e.message)
 
     private suspend fun setError(account: CaldavAccount, message: String?) {
         account.error = message
@@ -133,13 +133,16 @@ class EtebaseSynchronizer(
         account: CaldavAccount,
         client: EtebaseClient,
         caldavCalendar: CaldavCalendar,
-        collection: Collection
+        collection: Collection,
+        forceRefresh: Boolean = false,
     ) {
-        if (caldavCalendar.ctag?.equals(collection.stoken) == true) {
+        val localToken = caldavCalendar.ctag
+        val remoteToken = collection.stoken
+        if (!forceRefresh && localToken != null && localToken == remoteToken) {
             Logger.d("EtebaseSynchronizer") { "${caldavCalendar.name} up to date" }
             return
         }
-        Logger.d("EtebaseSynchronizer") { "updating $caldavCalendar" }
+        Logger.d("EtebaseSynchronizer") { "updating $caldavCalendar force=$forceRefresh" }
         client.fetchItems(collection, caldavCalendar) { (stoken, items) ->
             applyEntries(account, caldavCalendar, items, stoken)
             client.updateCache(collection, items)
@@ -160,10 +163,10 @@ class EtebaseSynchronizer(
         val changes = ArrayList<Item>()
         for (caldavTask in caldavDao.getMoved(caldavCalendar.uuid!!)) {
             client.deleteItem(collection, caldavTask)
-                    ?.let { changes.add(it) }
-                    ?: run {
-                        caldavDao.delete(caldavTask)
-                    }
+                ?.let { changes.add(it) }
+                ?: run {
+                    caldavDao.delete(caldavTask)
+                }
         }
         val tasksToPush = dirtyDao.getTasksToPush(caldavCalendar.uuid!!)
         val dirtyVersions = tasksToPush.associate { it.caldavTaskId to it.dirtyVersion }
@@ -173,15 +176,15 @@ class EtebaseSynchronizer(
         for ((task, caldavTask) in caldavTasks) {
             if (task.isDeleted) {
                 client.deleteItem(collection, caldavTask)
-                        ?.let { changes.add(it) }
-                        ?: taskDeleter.delete(task)
+                    ?.let { changes.add(it) }
+                    ?: taskDeleter.delete(task)
             } else {
                 changes.add(
-                        client.updateItem(
-                            collection,
-                            caldavTask,
-                            iCal.toVtodo(account, caldavCalendar, caldavTask, task),
-                        )
+                    client.updateItem(
+                        collection,
+                        caldavTask,
+                        iCal.toVtodo(account, caldavCalendar, caldavTask, task),
+                    )
                 )
             }
         }
