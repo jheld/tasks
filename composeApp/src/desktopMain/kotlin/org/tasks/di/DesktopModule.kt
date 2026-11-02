@@ -29,7 +29,6 @@ import org.tasks.auth.TasksOAuthClient
 import org.tasks.billing.BillingProvider
 import org.tasks.billing.DesktopLinkClient
 import org.tasks.billing.DesktopLinkClientImpl
-import org.tasks.billing.EntitlementSubscriptionProvider
 import org.tasks.billing.GitHubSponsorClient
 import org.tasks.billing.GitHubSponsorVerifier
 import org.tasks.billing.LocalSubscriptionProvider
@@ -399,9 +398,7 @@ actual fun platformModule(): Module =
             ).also { it.initialize() }
         }
         single<SubscriptionProvider> {
-            EntitlementSubscriptionProvider(
-                entitlement = get(),
-            )
+            LocalSubscriptionProvider()
         }
         single<DesktopLinkClient> {
             DesktopLinkClientImpl(

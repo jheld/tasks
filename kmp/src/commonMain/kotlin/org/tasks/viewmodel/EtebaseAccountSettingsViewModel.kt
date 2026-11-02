@@ -73,6 +73,11 @@ open class EtebaseAccountSettingsViewModel(
     private suspend fun seedFrom(account: CaldavAccount) {
         val defaultUrl = getString(Res.string.etebase_url)
         val hasCustomUrl = !account.url.isNullOrBlank() && account.url != defaultUrl
+        // Clear any stale pro subscription error since desktop uses local billing with hasPro=true
+        if (account.error?.contains("subscription_required", ignoreCase = true) == true) {
+            account.error = ""
+            caldavDao.update(account)
+        }
         seededAccountId = account.id
         _state.value =
             EtebaseAccountState(
