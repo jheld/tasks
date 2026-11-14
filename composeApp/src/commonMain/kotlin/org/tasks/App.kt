@@ -123,9 +123,11 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import co.touchlab.kermit.Logger
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -217,6 +219,7 @@ import org.tasks.compose.settings.HelpAndFeedbackDetail
 import org.tasks.compose.settings.NavigationDrawerDetail
 import org.tasks.compose.settings.NotificationsDetail
 import org.tasks.compose.settings.TaskDefaultsDetail
+import org.tasks.compose.settings.TaskListOptionsScreen
 import org.tasks.compose.settings.LinkDesktopScreen
 import org.tasks.compose.settings.ListSettingsScreen
 import org.tasks.compose.settings.TagSettingsScreen
@@ -294,6 +297,7 @@ import org.tasks.viewmodel.routeOnboarding
 import org.tasks.viewmodel.SubscriptionOnboardingViewModel
 import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
+import org.tasks.viewmodel.TaskListOptionsViewModel
 import org.tasks.viewmodel.TaskListViewModel
 import tasks.kmp.generated.resources.Res
 import tasks.kmp.generated.resources.no_task_selected
@@ -1293,8 +1297,8 @@ fun App(
                         // stack and the entry's own saved state survive.
                         var showSignInDialog by rememberSaveable { mutableStateOf(false) }
                         val addAccountViewModel = koinViewModel<AddAccountViewModel>()
-                        val hasTasksAccount by remember(chromeCaldavDao) {
-                            chromeCaldavDao.watchAccounts().map { accounts -> accounts.any { it.isTasksOrg } }
+                        val hasTasksAccount by remember<Flow<Boolean>>(chromeCaldavDao) {
+                            chromeCaldavDao.watchAccounts().map { accounts: List<CaldavAccount> -> accounts.any { it.isTasksOrg } }
                         }.collectAsState(initial = addAccountViewModel.hasTasksAccount)
                         val signInState by addAccountViewModel.signInState.collectAsState()
                         // Signing in and the account landing are published by two independent
@@ -1899,6 +1903,7 @@ private fun TaskListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val chipDataProvider = koinInject<ChipDataProvider>()
+    val taskListOptionsViewModel = koinViewModel<TaskListOptionsViewModel>()
     val reporting = koinInject<Reporting>()
     val sortViewModel = koinViewModel<SortSettingsViewModel>()
     val sortState by sortViewModel.state.collectAsState()
@@ -1927,6 +1932,7 @@ private fun TaskListScreen(
         onCreateTask = onCreateTask,
         searchActive = searchActive,
         onSearchActiveChange = onSearchActiveChange,
+        chipAppearance = taskListOptionsViewModel.chipAppearanceIndex.coerceAtLeast(0),
         modifier = Modifier.fillMaxSize(),
     )
 
@@ -2201,6 +2207,7 @@ private fun TaskListPane(
     onCreateTask: () -> Unit,
     searchActive: Boolean,
     onSearchActiveChange: (Boolean) -> Unit,
+    chipAppearance: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -2341,6 +2348,7 @@ private fun TaskListPane(
                     viewModel.setFilter(filter)
                 },
                 is24Hour = org.tasks.time.is24HourFormat(),
+                chipAppearance = chipAppearance,
             )
         }
 
@@ -3187,6 +3195,13 @@ private fun SettingsScreen(
                     }
                     is org.tasks.compose.settings.SettingsDestination.Notifications -> {
                         NotificationsDetail(
+                            onNavigateBack = {
+                                scope.launch { navigator.navigateBack() }
+                            },
+                        )
+                    }
+                    is org.tasks.compose.settings.SettingsDestination.TaskList -> {
+                        TaskListOptionsScreen(
                             onNavigateBack = {
                                 scope.launch { navigator.navigateBack() }
                             },

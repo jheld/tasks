@@ -53,6 +53,7 @@ internal fun TaskList(
     onToggleSubtasks: (Long, Boolean) -> Unit = { _, _ -> },
     onFilterClick: (Filter) -> Unit = {},
     is24Hour: Boolean = false,
+    chipAppearance: Int = 0,
 ) {
     val dateFormatter = rememberDateFormatter(is24Hour)
     val subtaskTrees = koinInject<SubtaskTreeRegistry>()
@@ -98,6 +99,7 @@ internal fun TaskList(
                 onToggleComplete = { onCompleteTask(task, !task.isCompleted) },
                 onToggleSubtasks = { onToggleSubtasks(task.id, !task.isCollapsed) },
                 onFilterClick = onFilterClick,
+                chipAppearance = chipAppearance,
             )
         }
     }

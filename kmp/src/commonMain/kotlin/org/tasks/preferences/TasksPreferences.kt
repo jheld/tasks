@@ -14,21 +14,34 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import org.tasks.sync.SyncSource
 
-class PreferencesSnapshot(private val preferences: Preferences) {
-    fun <T> get(key: Preferences.Key<T>, defaultValue: T): T = preferences[key] ?: defaultValue
+class PreferencesSnapshot(
+    private val preferences: Preferences,
+) {
+    fun <T> get(
+        key: Preferences.Key<T>,
+        defaultValue: T,
+    ): T = preferences[key] ?: defaultValue
 }
 
-class TasksPreferences(private val dataStore: DataStore<Preferences>) {
-
-    suspend fun <T> get(key: Preferences.Key<T>, defaultValue: T): T =
-        dataStore.data.map { it[key] }.firstOrNull() ?: defaultValue
+class TasksPreferences(
+    private val dataStore: DataStore<Preferences>,
+) {
+    suspend fun <T> get(
+        key: Preferences.Key<T>,
+        defaultValue: T,
+    ): T = dataStore.data.map { it[key] }.firstOrNull() ?: defaultValue
 
     suspend fun snapshot(): PreferencesSnapshot = PreferencesSnapshot(dataStore.data.first())
 
-    fun <T> flow(key: Preferences.Key<T>, defaultValue: T): Flow<T> =
-        dataStore.data.map { it[key] ?: defaultValue }
+    fun <T> flow(
+        key: Preferences.Key<T>,
+        defaultValue: T,
+    ): Flow<T> = dataStore.data.map { it[key] ?: defaultValue }
 
-    suspend fun <T> set(key: Preferences.Key<T>, value: T) {
+    suspend fun <T> set(
+        key: Preferences.Key<T>,
+        value: T,
+    ) {
         dataStore.edit { it[key] = value }
     }
 
@@ -37,7 +50,9 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun removeByPrefixes(prefixes: Collection<String>) {
         if (prefixes.isEmpty()) return
         dataStore.edit { prefs ->
-            prefs.asMap().keys
+            prefs
+                .asMap()
+                .keys
                 .filter { key -> prefixes.any { key.name.startsWith(it) } }
                 .forEach { prefs.remove(it) }
         }
@@ -58,6 +73,22 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         return applied
     }
 
+    suspend fun setIfGreater(
+        key: Preferences.Key<Long>,
+        value: Long,
+        default: Long = 0L,
+    ): Boolean {
+        var updated = false
+        dataStore.edit {
+            val current = it[key] ?: default
+            updated = value > current
+            if (updated) {
+                it[key] = value
+            }
+        }
+        return updated
+    }
+
     suspend fun upgradeOngoingSyncSource(source: SyncSource): Boolean {
         var applied = false
         dataStore.edit {
@@ -69,7 +100,10 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         return applied
     }
 
-    suspend fun getOrCreate(key: Preferences.Key<String>, value: String): String {
+    suspend fun getOrCreate(
+        key: Preferences.Key<String>,
+        value: String,
+    ): String {
         var current: String? = null
         dataStore.edit { prefs ->
             current = prefs[key]?.takeIf { it.isNotBlank() } ?: value.also { prefs[key] = it }
@@ -77,7 +111,10 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         return current ?: value
     }
 
-    suspend fun <T> getAndSet(key: Preferences.Key<T>, value: T): T? {
+    suspend fun <T> getAndSet(
+        key: Preferences.Key<T>,
+        value: T,
+    ): T? {
         var previous: T? = null
         dataStore.edit {
             previous = it[key]
@@ -150,6 +187,19 @@ class TasksPreferences(private val dataStore: DataStore<Preferences>) {
         val quietHoursStart = intPreferencesKey("quiet_hours_start")
         val quietHoursEnd = intPreferencesKey("quiet_hours_end")
         val addTasksToTop = booleanPreferencesKey("add_tasks_to_top")
+        val taskListFontSize = intPreferencesKey("font_size_v2")
+        val taskListRowSpacing = intPreferencesKey("row_padding")
+        val taskListFullTitle = booleanPreferencesKey("fullTaskTitle")
+        val taskListShowDescription = booleanPreferencesKey("show_description")
+        val taskListShowFullDescription = booleanPreferencesKey("show_full_description")
+        val taskListShowLinks = booleanPreferencesKey("linkify_task_list")
+        val taskListPerListSort = booleanPreferencesKey("per_list_sort")
+        val taskListSubtaskChips = booleanPreferencesKey("chips_subtask")
+        val taskListStartDateChips = booleanPreferencesKey("chips_start_date")
+        val taskListPlaceChips = booleanPreferencesKey("chips_place")
+        val taskListListChips = booleanPreferencesKey("chips_list")
+        val taskListTagChips = booleanPreferencesKey("chips_tag")
+        val taskListChipAppearance = stringPreferencesKey("chip_appearance")
         val defaultList = stringPreferencesKey("default_list")
         val defaultTags = stringPreferencesKey("default_tags")
         val defaultPriority = intPreferencesKey("default_priority")

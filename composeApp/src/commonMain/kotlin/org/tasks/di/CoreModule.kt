@@ -107,6 +107,7 @@ import org.tasks.viewmodel.LookAndFeelViewModel
 import org.tasks.viewmodel.MainSettingsViewModel
 import org.tasks.viewmodel.MicrosoftListSettingsViewModel
 import org.tasks.viewmodel.NavigationDrawerViewModel
+import org.tasks.viewmodel.TaskListOptionsViewModel
 import org.tasks.compose.settings.NavigationDrawerCustomizationViewModel
 import org.tasks.viewmodel.NotificationsViewModel
 import org.tasks.viewmodel.OpenTaskAccountViewModel
@@ -839,6 +840,7 @@ val coreModule: Module =
                 json = get(),
             )
         }
+        viewModelOf(::TaskListOptionsViewModel)
         viewModelOf(::BackupsViewModel)
         viewModel<NavigationDrawerCustomizationViewModel> {
             NavigationDrawerCustomizationViewModel(

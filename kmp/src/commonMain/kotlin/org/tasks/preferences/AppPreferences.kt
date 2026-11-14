@@ -7,10 +7,10 @@ import org.tasks.compose.pickers.DEFAULT_EVENING
 import org.tasks.compose.pickers.DEFAULT_MORNING
 import org.tasks.compose.pickers.DEFAULT_NIGHT
 import org.tasks.compose.pickers.QuickPickTimes
-import org.tasks.kmp.org.tasks.themes.ColorProvider
-import org.tasks.themes.BaseTheme
 import org.tasks.data.entity.Alarm
 import org.tasks.data.entity.Task
+import org.tasks.kmp.org.tasks.themes.ColorProvider
+import org.tasks.themes.BaseTheme
 import org.tasks.time.DateTimeUtils2.currentTimeMillis
 import org.tasks.time.plusDays
 import org.tasks.time.withMillisOfDay
@@ -20,12 +20,15 @@ const val DEFAULT_QUIET_HOURS_START = 22 * 60 * 60 * 1000
 const val DEFAULT_QUIET_HOURS_END = 10 * 60 * 60 * 1000
 const val DEFAULT_SNOOZE_MINUTES = 15
 const val DEFAULT_LOCATION_UPDATE_INTERVAL = 15
+const val DEFAULT_TASK_LIST_FONT_SIZE = 16
+const val DEFAULT_TASK_LIST_ROW_SPACING = 16
 
-val DEFAULT_ALARMS: List<Alarm> = listOf(
-    Alarm.whenStarted(0),
-    Alarm.whenDue(0),
-    Alarm.whenOverdue(0),
-)
+val DEFAULT_ALARMS: List<Alarm> =
+    listOf(
+        Alarm.whenStarted(0),
+        Alarm.whenDue(0),
+        Alarm.whenOverdue(0),
+    )
 
 val DEFAULT_ALARMS_JSON: Set<String> = DEFAULT_ALARMS.toAlarmJson()
 
@@ -41,8 +44,7 @@ fun Set<String>.toAlarms(): List<Alarm> =
             Logger.e(e, tag = "AppPreferences") { "Failed to decode alarm: $it" }
             null
         }
-    }
-        .sortedWith(alarmOrder)
+    }.sortedWith(alarmOrder)
 
 data class DatePickerPreferences(
     val shortcutMorning: Int = DEFAULT_MORNING,
@@ -109,9 +111,7 @@ data class TaskDefaultSettings(
     val locationUpdateIntervalMinutes: Int = DEFAULT_LOCATION_UPDATE_INTERVAL,
 )
 
-fun NotificationSettings.isCurrentlyQuietHours(
-    now: Long = currentTimeMillis(),
-): Boolean {
+fun NotificationSettings.isCurrentlyQuietHours(now: Long = currentTimeMillis()): Boolean {
     if (!quietHoursEnabled) {
         return false
     }
@@ -144,67 +144,181 @@ fun NotificationSettings.adjustForQuietHours(time: Long): Long {
 
 interface AppPreferences {
     suspend fun getInstallVersion(): Int
+
     suspend fun setInstallVersion(value: Int)
+
     suspend fun getInstallDate(): Long
+
     suspend fun setInstallDate(value: Long)
+
     suspend fun getDeviceInstallVersion(): Int
+
     suspend fun setDeviceInstallVersion(value: Int)
+
     suspend fun isDefaultDueTimeEnabled(): Boolean
+
     suspend fun defaultLocationReminder(): Int
+
     suspend fun defaultAlarms(): List<Alarm>
+
     suspend fun defaultRingMode(): Int
+
     suspend fun defaultDueTime(): Int
+
     suspend fun defaultPriority(): Int
+
     suspend fun isCurrentlyQuietHours(): Boolean
+
     suspend fun adjustForQuietHours(time: Long): Long
+
     suspend fun locationUpdateIntervalMinutes(): Int = DEFAULT_LOCATION_UPDATE_INTERVAL
+
     suspend fun addTasksToTop(): Boolean = true
+
+    // Task list options
+    suspend fun taskListFontSize(): Int = DEFAULT_TASK_LIST_FONT_SIZE
+
+    suspend fun setTaskListFontSize(value: Int) {}
+
+    suspend fun taskListRowSpacing(): Int = DEFAULT_TASK_LIST_ROW_SPACING
+
+    suspend fun setTaskListRowSpacing(value: Int) {}
+
+    suspend fun taskListShowFullTitle(): Boolean = false
+
+    suspend fun setTaskListFullTitle(value: Boolean) {}
+
+    suspend fun taskListShowDescription(): Boolean = true
+
+    suspend fun setTaskListShowDescription(value: Boolean) {}
+
+    suspend fun taskListShowFullDescription(): Boolean = false
+
+    suspend fun setTaskListShowFullDescription(value: Boolean) {}
+
+    suspend fun taskListShowLinks(): Boolean = false
+
+    suspend fun setTaskListShowLinks(value: Boolean) {}
+
+    suspend fun taskListPerListSort(): Boolean = false
+
+    suspend fun setTaskListPerListSort(value: Boolean) {}
+
+    suspend fun taskListSubtaskChips(): Boolean = true
+
+    suspend fun setTaskListSubtaskChips(value: Boolean) {}
+
+    suspend fun taskListStartDateChips(): Boolean = true
+
+    suspend fun setTaskListStartDateChips(value: Boolean) {}
+
+    suspend fun taskListPlaceChips(): Boolean = true
+
+    suspend fun setTaskListPlaceChips(value: Boolean) {}
+
+    suspend fun taskListListChips(): Boolean = true
+
+    suspend fun setTaskListListChips(value: Boolean) {}
+
+    suspend fun taskListTagChips(): Boolean = true
+
+    suspend fun setTaskListTagChips(value: Boolean) {}
+
+    suspend fun taskListChipAppearance(): Int = 0
+
+    suspend fun setTaskListChipAppearance(value: Int) {}
+
     suspend fun taskDefaults(): TaskDefaultSettings
+
     suspend fun setAddTasksToTop(value: Boolean)
+
     suspend fun setDefaultList(value: String?)
+
     suspend fun setDefaultTags(value: List<String>)
+
     suspend fun setDefaultPriority(value: Int)
+
     suspend fun setDefaultHideUntil(value: Int)
+
     suspend fun setDefaultDueDate(value: Int)
+
     suspend fun setDefaultCalendar(value: String?)
+
     suspend fun setDefaultRecurrence(value: String?)
+
     suspend fun setDefaultRecurrenceFrom(value: Int)
 
     suspend fun setDefaultAlarms(value: List<Alarm>)
+
     suspend fun setDefaultRingMode(value: Int)
+
     suspend fun setDefaultLocation(value: String?)
+
     suspend fun setDefaultLocationReminder(value: Int)
+
     suspend fun setLocationUpdateIntervalMinutes(value: Int)
+
     suspend fun datePickerPreferences(): DatePickerPreferences = DatePickerPreferences()
+
     suspend fun setDatePickerInputMode(value: Boolean) {}
+
     suspend fun setTimePickerInputMode(value: Boolean) {}
+
     suspend fun drawerSettings(): DrawerSettings
+
     suspend fun setFiltersEnabled(value: Boolean)
+
     suspend fun setTodayFilter(value: Boolean)
+
     suspend fun setRecentlyModifiedFilter(value: Boolean)
+
     suspend fun setTagsEnabled(value: Boolean)
+
     suspend fun setHideUnusedTags(value: Boolean)
+
     suspend fun setPlacesEnabled(value: Boolean)
+
     suspend fun setHideUnusedPlaces(value: Boolean)
+
     suspend fun lookAndFeelSettings(): LookAndFeelSettings
+
     suspend fun setTheme(value: Int)
+
     suspend fun setThemeColor(value: Int)
+
     suspend fun setDynamicColor(value: Boolean)
+
     suspend fun setMarkdown(value: Boolean)
+
     suspend fun setOpenLastViewedList(value: Boolean)
+
     suspend fun setDefaultOpenFilter(value: String?)
+
     suspend fun setLanguageTag(value: String?)
+
     suspend fun notificationSettings(): NotificationSettings
+
     suspend fun setNotificationsEnabled(value: Boolean)
+
     suspend fun setPersistentNotifications(value: Boolean)
+
     suspend fun setWearableNotifications(value: Boolean)
+
     suspend fun setBundleNotifications(value: Boolean)
+
     suspend fun setVoiceReminders(value: Boolean)
+
     suspend fun setSwipeToSnoozeEnabled(value: Boolean)
+
     suspend fun setSwipeToSnoozeMinutes(value: Int)
+
     suspend fun setDefaultRemindersEnabled(value: Boolean)
+
     suspend fun setDefaultReminderTime(value: Int)
+
     suspend fun setQuietHoursEnabled(value: Boolean)
+
     suspend fun setQuietHoursStart(value: Int)
+
     suspend fun setQuietHoursEnd(value: Int)
 }
