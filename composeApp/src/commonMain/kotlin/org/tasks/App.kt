@@ -214,6 +214,7 @@ import org.tasks.compose.settings.HelpAndFeedbackDetail
 import org.tasks.compose.settings.NavigationDrawerDetail
 import org.tasks.compose.settings.NotificationsDetail
 import org.tasks.compose.settings.TaskDefaultsDetail
+import org.tasks.compose.settings.TaskListOptionsScreen
 import org.tasks.compose.settings.LinkDesktopScreen
 import org.tasks.compose.settings.ListSettingsScreen
 import org.tasks.compose.settings.TagSettingsScreen
@@ -291,6 +292,7 @@ import org.tasks.viewmodel.routeOnboarding
 import org.tasks.viewmodel.SubscriptionOnboardingViewModel
 import org.tasks.viewmodel.SortSettingsViewModel
 import org.tasks.viewmodel.TaskEditViewModel
+import org.tasks.viewmodel.TaskListOptionsViewModel
 import org.tasks.viewmodel.TaskListViewModel
 import tasks.kmp.generated.resources.Res
 import tasks.kmp.generated.resources.no_task_selected
@@ -1935,6 +1937,7 @@ private fun TaskListScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val chipDataProvider = koinInject<ChipDataProvider>()
+    val taskListOptionsViewModel = koinViewModel<TaskListOptionsViewModel>()
     val reporting = koinInject<Reporting>()
     val sortViewModel = koinViewModel<SortSettingsViewModel>()
     val sortState by sortViewModel.state.collectAsState()
@@ -1963,6 +1966,7 @@ private fun TaskListScreen(
         onCreateTask = onCreateTask,
         searchActive = searchActive,
         onSearchActiveChange = onSearchActiveChange,
+        chipAppearance = taskListOptionsViewModel.chipAppearanceIndex.coerceAtLeast(0),
         modifier = Modifier.fillMaxSize(),
     )
 
@@ -2237,6 +2241,7 @@ private fun TaskListPane(
     onCreateTask: () -> Unit,
     searchActive: Boolean,
     onSearchActiveChange: (Boolean) -> Unit,
+    chipAppearance: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -2377,6 +2382,7 @@ private fun TaskListPane(
                     viewModel.setFilter(filter)
                 },
                 is24Hour = org.tasks.time.is24HourFormat(),
+                chipAppearance = chipAppearance,
             )
         }
 
@@ -3222,6 +3228,13 @@ private fun SettingsScreen(
                     }
                     is org.tasks.compose.settings.SettingsDestination.Notifications -> {
                         NotificationsDetail(
+                            onNavigateBack = {
+                                scope.launch { navigator.navigateBack() }
+                            },
+                        )
+                    }
+                    is org.tasks.compose.settings.SettingsDestination.TaskList -> {
+                        TaskListOptionsScreen(
                             onNavigateBack = {
                                 scope.launch { navigator.navigateBack() }
                             },
